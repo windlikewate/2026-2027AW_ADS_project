@@ -1,0 +1,23 @@
+digraph B_PLUS_TREE {
+    graph [rankdir=TB];
+    node [shape=box, style=filled, margin="0.12,0.08"];
+    n000001C9CDA64490 [label="6", fillcolor="lightblue"];
+    n000001C9CDA64490 -> n000001C9CDA63FB0;
+    n000001C9CDA63FB0 [label="2 | 4", fillcolor="lightblue"];
+    n000001C9CDA63FB0 -> n000001C9CDA641C0;
+    n000001C9CDA641C0 [label="0 | 1", fillcolor="palegreen"];
+    n000001C9CDA641C0 -> n000001C9CDA64220 [style=dashed, color=darkgreen, constraint=false];
+    n000001C9CDA63FB0 -> n000001C9CDA64220;
+    n000001C9CDA64220 [label="2 | 3", fillcolor="palegreen"];
+    n000001C9CDA64220 -> n000001C9CDA64280 [style=dashed, color=darkgreen, constraint=false];
+    n000001C9CDA63FB0 -> n000001C9CDA64280;
+    n000001C9CDA64280 [label="4 | 5", fillcolor="palegreen"];
+    n000001C9CDA64280 -> n000001C9CDA64010 [style=dashed, color=darkgreen, constraint=false];
+    n000001C9CDA64490 -> n000001C9CDA64130;
+    n000001C9CDA64130 [label="8", fillcolor="lightblue"];
+    n000001C9CDA64130 -> n000001C9CDA64010;
+    n000001C9CDA64010 [label="6 | 7", fillcolor="palegreen"];
+    n000001C9CDA64010 -> n000001C9CDA643D0 [style=dashed, color=darkgreen, constraint=false];
+    n000001C9CDA64130 -> n000001C9CDA643D0;
+    n000001C9CDA643D0 [label="8 | 9", fillcolor="palegreen"];
+}
