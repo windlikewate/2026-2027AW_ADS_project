@@ -15,7 +15,7 @@
      ```bash
      make time_pdf
      ```
-  3. 查看生成的可视化图片：
+  3. 生成树的可视化图片：
      ```bash
      make show
      ```

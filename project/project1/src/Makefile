@@ -1,4 +1,15 @@
+ifeq ($(OS),Windows_NT)
+# Keep the UCRT64 runtime DLLs ahead of Conda/Git MinGW DLLs on Windows.
+MSYS2_UCRT64 ?= C:/msys64/ucrt64/bin
+define COMPILE
+	powershell.exe -NoProfile -Command '$$env:PATH = "C:\msys64\ucrt64\bin;" + $$env:PATH; gcc $(CFLAGS) $< -o $@'
+endef
+else
 CC = gcc
+define COMPILE
+	$(CC) $(CFLAGS) $< -o $@
+endef
+endif
 CFLAGS = -std=c11 -O2 -Wall -Wextra -pedantic
 PYTHON = python
 
@@ -14,7 +25,7 @@ time: $(TIME_EXE)
 	./$(TIME_EXE)
 
 $(TIME_EXE): testbench_time.c $(HEADERS)
-	$(CC) $(CFLAGS) testbench_time.c -o $(TIME_EXE)
+	$(COMPILE)
 
 # Generate the CSV automatically if it is missing or older than the executable.
 $(TIME_DATA): $(TIME_EXE)
@@ -29,7 +40,7 @@ show: $(SHOW_EXE)
 	./$(SHOW_EXE)
 
 $(SHOW_EXE): testbench_figure.c $(HEADERS)
-	$(CC) $(CFLAGS) testbench_figure.c -o $(SHOW_EXE)
+	$(COMPILE)
 
 # Remove generated executables, data, object files and all generated figures.
 clean:
