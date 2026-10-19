@@ -1,3 +1,10 @@
+/*
+ * File: binaray_search_tree.h
+ * Description: Implementation of an unbalanced Binary Search Tree (BST)
+ *              with iterative insertion, iterative deletion, and Graphviz
+ *              DOT/PNG topology export utilities.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -19,14 +26,15 @@
 
 #ifndef TREE_GRAPHVIZ_COMMAND
 #define TREE_GRAPHVIZ_COMMAND
-/* Use PATH lookup (CreateProcess search on Windows) so IDE and shell launchers
-   work alike. GRAPHVIZ_DOT can override the executable when needed. */
+/*
+ * Render a Graphviz DOT file to a PNG image using the 'dot' executable.
+ * Uses PATH lookup (or GRAPHVIZ_DOT environment variable if specified).
+ */
 static int treeRenderGraphviz(const char* dotPath, const char* pngPath) {
     const char* exe = getenv("GRAPHVIZ_DOT");
     if (exe == NULL || exe[0] == '\0') exe = "dot";
 #ifdef _WIN32
-    /* system() invokes cmd.exe, whose quoting rules break quoted executable
-       paths. Use _spawnvp to search PATH and pass arguments without a shell. */
+    /* Use _spawnvp on Windows to pass arguments directly without cmd.exe quoting issues */
     const char* const argv[] = {exe, "-Tpng", dotPath, "-o", pngPath, NULL};
     return _spawnvp(_P_WAIT, exe, argv) == 0 ? 0 : -1;
 #else
@@ -38,19 +46,22 @@ static int treeRenderGraphviz(const char* dotPath, const char* pngPath) {
 }
 #endif
 
-
-typedef struct BSTreeNode BSTreeNode; // Define the binary search tree node structure
+/*
+ * Node structure for an unbalanced Binary Search Tree.
+ * Stores an integer key and pointers to the left and right subtrees.
+ */
+typedef struct BSTreeNode BSTreeNode;
 struct BSTreeNode{
-    int val;
-    BSTreeNode* Left;
-    BSTreeNode* Right;
+    int val;            /* Integer key stored in the node */
+    BSTreeNode* Left;   /* Pointer to left child (keys < val) */
+    BSTreeNode* Right;  /* Pointer to right child (keys > val) */
 };
 
 /*
  * Recursive implementations kept for reference.
  * WARNING: An ordered input makes an ordinary BST degenerate into a chain.
  * These recursive functions may then create O(N) call frames and cause a
- * stack overflow when N is large (around 26000 with the current Windows stack).
+ * stack overflow when N is large (around 26000 with the default call stack).
  *
 BSTreeNode* insertBST(BSTreeNode* root, int val) { // Insert a value into the binary search tree
     if (root == NULL) {
@@ -92,7 +103,7 @@ BSTreeNode* deleteBST(BSTreeNode* root, int val) { // Delete a value from the bi
         } else { // Node has two children, find the inorder successor (smallest node in the right subtree)
             BSTreeNode* temp = root->Right;
             while (temp->Left != NULL) {
-                temp = temp->Left; //find the smallest node in the right subtree
+                temp = temp->Left; // find the smallest node in the right subtree
             }
             root->val = temp->val;
             root->Right = deleteBST(root->Right, temp->val); // Delete the inorder successor from the right subtree
@@ -103,29 +114,36 @@ BSTreeNode* deleteBST(BSTreeNode* root, int val) { // Delete a value from the bi
 }
 */
 
-BSTreeNode* insertBST(BSTreeNode* root, int val) { // Insert a value into the binary search tree iteratively
+/*
+ * Insert a key into the BST iteratively.
+ * Uses O(1) auxiliary stack space to prevent stack overflow on skewed inputs.
+ */
+BSTreeNode* insertBST(BSTreeNode* root, int val) {
     BSTreeNode* parent = NULL;
     BSTreeNode* current = root;
 
-    while (current != NULL) { // Find the empty position for the new node
+    /* Walk down the tree from the root to locate the insertion point */
+    while (current != NULL) {
         parent = current;
         if (val < current->val) {
-            current = current->Left;
+            current = current->Left;    /* Move to left child */
         } else if (val > current->val) {
-            current = current->Right;
+            current = current->Right;   /* Move to right child */
         } else {
-            return root; // Duplicate value, do nothing
+            return root;                /* Duplicate key found; ignore insertion */
         }
     }
 
+    /* Allocate and initialize the new leaf node */
     BSTreeNode* newNode = (BSTreeNode*)malloc(sizeof(BSTreeNode));
-    if (newNode == NULL) return root; // Memory allocation failed
+    if (newNode == NULL) return root;   /* Memory allocation failed */
     newNode->val = val;
     newNode->Left = NULL;
     newNode->Right = NULL;
 
+    /* Attach the new node to its parent (or set as root if tree was empty) */
     if (parent == NULL) {
-        return newNode; // The original tree was empty
+        return newNode;                 /* The original tree was empty */
     } else if (val < parent->val) {
         parent->Left = newNode;
     } else {
@@ -134,11 +152,16 @@ BSTreeNode* insertBST(BSTreeNode* root, int val) { // Insert a value into the bi
     return root;
 }
 
-BSTreeNode* deleteBST(BSTreeNode* root, int val) { // Delete a value from the binary search tree iteratively
+/*
+ * Delete a key from the BST iteratively.
+ * Handles leaf nodes, one-child nodes, and two-child nodes (via in-order successor).
+ */
+BSTreeNode* deleteBST(BSTreeNode* root, int val) {
     BSTreeNode* parent = NULL;
     BSTreeNode* current = root;
 
-    while (current != NULL && current->val != val) { // Find the node and record its parent
+    /* Search for the target node while keeping track of its parent */
+    while (current != NULL && current->val != val) {
         parent = current;
         if (val < current->val) {
             current = current->Left;
@@ -146,25 +169,27 @@ BSTreeNode* deleteBST(BSTreeNode* root, int val) { // Delete a value from the bi
             current = current->Right;
         }
     }
-    if (current == NULL) return root; // Value not found
+    if (current == NULL) return root;   /* Target key not found in the tree */
 
+    /* If the target node has two children, reduce to deleting its in-order successor */
     if (current->Left != NULL && current->Right != NULL) {
-        // Replace the node with its inorder successor, which has at most one child
+        /* Find the minimum node in the right subtree (which has no left child) */
         BSTreeNode* successorParent = current;
         BSTreeNode* successor = current->Right;
         while (successor->Left != NULL) {
             successorParent = successor;
             successor = successor->Left;
         }
+        /* Copy the successor's key into the current node and splice out the successor */
         current->val = successor->val;
         parent = successorParent;
         current = successor;
     }
 
-    // Connect the only child, if any, directly to the deleted node's parent
+    /* Connect the single child (or NULL) directly to the removed node's parent */
     BSTreeNode* child = current->Left != NULL ? current->Left : current->Right;
     if (parent == NULL) {
-        root = child; // Delete the root node
+        root = child;                   /* Deleting the root node */
     } else if (parent->Left == current) {
         parent->Left = child;
     } else {
@@ -174,6 +199,9 @@ BSTreeNode* deleteBST(BSTreeNode* root, int val) { // Delete a value from the bi
     return root;
 }
 
+/*
+ * Recursively write directed edges of the BST in Graphviz DOT format.
+ */
 void exportBSTDOT(BSTreeNode* root, FILE* fp) {
     if (root == NULL) return;
 
@@ -191,8 +219,11 @@ void exportBSTDOT(BSTreeNode* root, FILE* fp) {
     exportBSTDOT(root->Right, fp);
 }
 
+/*
+ * Export the BST structure to a DOT file and render it as a PNG image.
+ */
 void visualizeBST(BSTreeNode* root) {
-    /* Support launching the testbench from either the project root or src. */
+    /* Support launching the testbench from either the project root or src */
     const char* dir = ACCESS("src", 0) == 0
                         ? "src/visualizations"
                         : "visualizations";
@@ -236,4 +267,3 @@ void visualizeBST(BSTreeNode* root) {
                 dotPath);
     }
 }
-

@@ -1,3 +1,10 @@
+/*
+ * File: AVL_tree.h
+ * Description: Implementation of a self-balancing AVL Tree supporting
+ *              single rotations (LL, RR), double rotations (LR, RL),
+ *              insertion, deletion, and Graphviz visualization.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -19,6 +26,9 @@
 
 #ifndef TREE_GRAPHVIZ_COMMAND
 #define TREE_GRAPHVIZ_COMMAND
+/*
+ * Invoke Graphviz 'dot' to render a DOT file into a PNG diagram.
+ */
 static int treeRenderGraphviz(const char* dotPath, const char* pngPath) {
     const char* exe = getenv("GRAPHVIZ_DOT");
     if (exe == NULL || exe[0] == '\0') exe = "dot";
@@ -33,21 +43,30 @@ static int treeRenderGraphviz(const char* dotPath, const char* pngPath) {
 }
 #endif
 
-
-
-typedef struct AVLTreeNode AVLTreeNode; //define the AVL tree node
+/*
+ * AVL Tree node definition.
+ * Maintains subtree height and balance factor BF = height(Left) - height(Right)
+ * so that |BF| <= 1 holds at every node after rebalancing.
+ */
+typedef struct AVLTreeNode AVLTreeNode;
 struct AVLTreeNode{
-    int val;
-    int height; //height of the node in the AVL tree
-    int BF; // balance factor of the node in the AVL tree
-    AVLTreeNode* Left;
-    AVLTreeNode* Right;
+    int val;            /* Integer key stored in the node */
+    int height;         /* Height of the subtree rooted at this node (leaf = 0) */
+    int BF;             /* Balance factor: height(Left) - height(Right) */
+    AVLTreeNode* Left;  /* Pointer to the left subtree */
+    AVLTreeNode* Right; /* Pointer to the right subtree */
 };
 
+/*
+ * Return the height of a node, or -1 for an empty (NULL) subtree.
+ */
 int CalculateHeight(AVLTreeNode* node) {
     return node == NULL ? -1 : node->height;
 }
 
+/*
+ * Compute the balance factor BF(node) = height(Left) - height(Right).
+ */
 int CalculateBF(AVLTreeNode* node) {
     if (node == NULL) {
         return 0;
@@ -55,43 +74,73 @@ int CalculateBF(AVLTreeNode* node) {
     return CalculateHeight(node->Left) - CalculateHeight(node->Right);
 }
 
+/*
+ * LL Single Right Rotation:
+ * Restores balance when the left-left subtree becomes too heavy (BF = +2, left BF >= 0).
+ * Lifts the left child L as the new subtree root and updates heights and balance factors.
+ */
 AVLTreeNode* singleRotationLL(AVLTreeNode* root){
     AVLTreeNode* L = root->Left;
-    root->Left = L->Right;
-    L->Right = root;
+    root->Left = L->Right;  /* Move L's right subtree to root's left */
+    L->Right = root;        /* Place old root as L's right child */
+
+    /* Recompute height and balance factor of the demoted root first */
     root->height = (CalculateHeight(root->Left) > CalculateHeight(root->Right)
                     ? CalculateHeight(root->Left) : CalculateHeight(root->Right)) + 1;
     root->BF = CalculateBF(root);
+
+    /* Recompute height and balance factor of the new subtree root L */
     L->height = (CalculateHeight(L->Left) > CalculateHeight(L->Right)
                  ? CalculateHeight(L->Left) : CalculateHeight(L->Right)) + 1;
     L->BF = CalculateBF(L);
     return L;
 }
 
+/*
+ * RR Single Left Rotation:
+ * Restores balance when the right-right subtree becomes too heavy (BF = -2, right BF <= 0).
+ * Lifts the right child R as the new subtree root and updates heights and balance factors.
+ */
 AVLTreeNode* singleRotationRR(AVLTreeNode* root){
     AVLTreeNode* R = root->Right;
-    root->Right = R->Left;
-    R->Left = root;
+    root->Right = R->Left;  /* Move R's left subtree to root's right */
+    R->Left = root;         /* Place old root as R's left child */
+
+    /* Recompute height and balance factor of the demoted root first */
     root->height = (CalculateHeight(root->Left) > CalculateHeight(root->Right)
                     ? CalculateHeight(root->Left) : CalculateHeight(root->Right)) + 1;
     root->BF = CalculateBF(root);
+
+    /* Recompute height and balance factor of the new subtree root R */
     R->height = (CalculateHeight(R->Left) > CalculateHeight(R->Right)
                  ? CalculateHeight(R->Left) : CalculateHeight(R->Right)) + 1;
     R->BF = CalculateBF(R);
     return R;
 }
 
+/*
+ * LR Double Rotation (Left-Right):
+ * Left-rotates the left child to convert LR imbalance into LL, then right-rotates root.
+ */
 AVLTreeNode* doubleRotationLR(AVLTreeNode* root){
     root->Left = singleRotationRR(root->Left);
     return singleRotationLL(root);
 }
 
+/*
+ * RL Double Rotation (Right-Left):
+ * Right-rotates the right child to convert RL imbalance into RR, then left-rotates root.
+ */
 AVLTreeNode* doubleRotationRL(AVLTreeNode* root){
     root->Right = singleRotationLL(root->Right);
     return singleRotationRR(root);
 }
 
-AVLTreeNode* insertAVL(AVLTreeNode* root,int val){
+/*
+ * Insert a key into the AVL tree and rebalance along the return path.
+ */
+AVLTreeNode* insertAVL(AVLTreeNode* root, int val){
+    /* Base case: allocate a new leaf node with height 0 and BF 0 */
     if (root == NULL) {
         AVLTreeNode* newNode = (AVLTreeNode*)malloc(sizeof(AVLTreeNode));
         newNode->val = val;
@@ -102,60 +151,69 @@ AVLTreeNode* insertAVL(AVLTreeNode* root,int val){
         return newNode;
     }
 
+    /* Recursively descend into the left or right subtree */
     if (val < root->val) {
         root->Left = insertAVL(root->Left, val);
     } else if (val > root->val) {
         root->Right = insertAVL(root->Right, val);
     } else {
-        // 此时说明已经存在相同的值，不需要插入，直接返回当前节点即可
+        /* Duplicate key already exists; no insertion needed */
         return root;
     }
 
-    // Update height and balance factor
+    /* Update height and balance factor of the current ancestor */
     root->height = (CalculateHeight(root->Left) > CalculateHeight(root->Right)
                     ? CalculateHeight(root->Left) : CalculateHeight(root->Right)) + 1;
     root->BF = CalculateBF(root);
 
-    // Perform rotations if necessary
+    /* Left-heavy imbalance (BF == +2): apply LR or LL rotation */
     if (root->BF > 1) {
         if (CalculateBF(root->Left) < 0) {
-            return doubleRotationLR(root);
+            return doubleRotationLR(root);  /* Left-Right case */
         } else {
-            return singleRotationLL(root);
+            return singleRotationLL(root);  /* Left-Left case */
         }
     }
 
+    /* Right-heavy imbalance (BF == -2): apply RL or RR rotation */
     if (root->BF < -1) {
         if (CalculateBF(root->Right) > 0) {
-            return doubleRotationRL(root);
+            return doubleRotationRL(root);  /* Right-Left case */
         } else {
-            return singleRotationRR(root);
+            return singleRotationRR(root);  /* Right-Right case */
         }
     }
 
     return root;
 }
 
+/*
+ * Delete a key from the AVL tree and rebalance all affected ancestors.
+ */
 AVLTreeNode* deleteAVL(AVLTreeNode* root, int val){
     if (root == NULL){
-        return NULL;
+        return NULL;    /* Key not found */
     }
 
+    /* Search for the node to delete in the appropriate subtree */
     if (val < root->val) {
         root->Left = deleteAVL(root->Left, val);
     } else if (val > root->val) {
         root->Right = deleteAVL(root->Right, val);
     } else {
-        // Node to be deleted found
-        if (root->Left == NULL) { // Node has no left child, replace with right child
+        /* Target node found */
+        if (root->Left == NULL) {
+            /* Only right child or leaf: replace node with its right child */
             AVLTreeNode* temp = root->Right;
             free(root);
             return temp;
-        } else if (root->Right == NULL) { // Node has no right child, replace with left child
+        } else if (root->Right == NULL) {
+            /* Only left child: replace node with its left child */
             AVLTreeNode* temp = root->Left;
             free(root);
             return temp;
-        } else { // Node has both left and right children, replace with inorder successor
+        } else {
+            /* Two children: replace value with in-order successor (minimum of right subtree) */
             AVLTreeNode* temp = root->Right;
             while (temp->Left != NULL) {
                 temp = temp->Left;
@@ -165,12 +223,12 @@ AVLTreeNode* deleteAVL(AVLTreeNode* root, int val){
         }
     }
 
-    // Update height and balance factor
+    /* Update height and balance factor after deletion in subtree */
     root->height = (CalculateHeight(root->Left) > CalculateHeight(root->Right)
                     ? CalculateHeight(root->Left) : CalculateHeight(root->Right)) + 1;
     root->BF = CalculateBF(root);
 
-    // Perform rotations if necessary
+    /* Restore AVL balance if the current node became left-heavy (BF == +2) */
     if (root->BF > 1) {
         if (CalculateBF(root->Left) < 0) {
             return doubleRotationLR(root);
@@ -179,6 +237,7 @@ AVLTreeNode* deleteAVL(AVLTreeNode* root, int val){
         }
     }
 
+    /* Restore AVL balance if the current node became right-heavy (BF == -2) */
     if (root->BF < -1) {
         if (CalculateBF(root->Right) > 0) {
             return doubleRotationRL(root);
@@ -190,7 +249,9 @@ AVLTreeNode* deleteAVL(AVLTreeNode* root, int val){
     return root;
 }
 
-
+/*
+ * Recursively output AVL edges in Graphviz DOT format.
+ */
 void exportAVLDOT(AVLTreeNode* root, FILE* fp) {
     if (root == NULL) return;
 
@@ -208,8 +269,11 @@ void exportAVLDOT(AVLTreeNode* root, FILE* fp) {
     exportAVLDOT(root->Right, fp);
 }
 
+/*
+ * Export the AVL tree to DOT and render it as a PNG image.
+ */
 void visualizeAVL(AVLTreeNode* root) {
-    /* Support launching the testbench from either the project root or src. */
+    /* Support launching the testbench from either the project root or src */
     const char* dir = ACCESS("src", 0) == 0
                         ? "src/visualizations"
                         : "visualizations";

@@ -1,10 +1,15 @@
+/*
+ * File: splay_tree.h
+ * Description: Implementation of a self-adjusting Splay Tree using
+ *              zig, zig-zig, and zig-zag rotations, split-based insertion,
+ *              and join-based deletion.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <errno.h>
 #include <string.h>
-
-
 
 #ifdef _WIN32
 #include <direct.h>
@@ -21,6 +26,9 @@
 
 #ifndef TREE_GRAPHVIZ_COMMAND
 #define TREE_GRAPHVIZ_COMMAND
+/*
+ * Invoke Graphviz 'dot' to render a DOT file into a PNG diagram.
+ */
 static int treeRenderGraphviz(const char* dotPath, const char* pngPath) {
     const char* exe = getenv("GRAPHVIZ_DOT"); if (exe == NULL || exe[0] == '\0') exe = "dot";
 #ifdef _WIN32
@@ -32,65 +40,89 @@ static int treeRenderGraphviz(const char* dotPath, const char* pngPath) {
 }
 #endif
 
-
-
+/*
+ * Splay Tree node structure.
+ * Requires no explicit height or color metadata; amortized O(log N) balance
+ * is maintained dynamically by splaying accessed nodes to the root.
+ */
 typedef struct SplayTreeNode SplayTreeNode;
 
 struct SplayTreeNode{
-    int key;
-    SplayTreeNode* left;
-    SplayTreeNode* right;
+    int key;                /* Integer key stored in the node */
+    SplayTreeNode* left;    /* Pointer to the left subtree */
+    SplayTreeNode* right;   /* Pointer to the right subtree */
 };
 
-SplayTreeNode* singleRotateLL(SplayTreeNode* root){// the left-left rotation
+/*
+ * Single right rotation (zig on left child): lifts root->left to root.
+ */
+SplayTreeNode* singleRotateLL(SplayTreeNode* root){
     SplayTreeNode* newRoot = root->left;
     root->left = newRoot->right;
     newRoot->right = root;
     return newRoot;
 }
 
-SplayTreeNode* singleRotateRR(SplayTreeNode* root){// the right-right rotation
+/*
+ * Single left rotation (zag on right child): lifts root->right to root.
+ */
+SplayTreeNode* singleRotateRR(SplayTreeNode* root){
     SplayTreeNode* newRoot = root->right;
     root->right = newRoot->left;
     newRoot->left = root;
     return newRoot;
 }
-SplayTreeNode* findSplay(SplayTreeNode* root, int key){ // implement the find operation with splay
+
+/*
+ * Search for 'key' and splay the matching node (or last visited node) to the root.
+ * Applies two-level zig-zig and zig-zag rotations along the recursion path.
+ */
+SplayTreeNode* findSplay(SplayTreeNode* root, int key){
     if(!root || root->key == key) return root;
 
+    /* Target key lies in the left subtree */
     if(key < root->key){
-        if(root->left == NULL) return root; // the key is not in the tree
+        if(root->left == NULL) return root; /* Key is not in the tree; splay last visited */
 
-        if(key < root->left->key){ // zig-zig: continue searching in the left-left subtree
+        if(key < root->left->key){
+            /* Zig-Zig (Left-Left): splay in left-left grandchild, then rotate grandparent first */
             root->left->left = findSplay(root->left->left, key);
             root = singleRotateLL(root);
-        } else if(key > root->left->key){ // zig-zag: continue searching in the left-right subtree
+        } else if(key > root->left->key){
+            /* Zig-Zag (Left-Right): splay in left-right grandchild, then rotate parent first */
             root->left->right = findSplay(root->left->right, key);
             if(root->left->right != NULL)
                 root->left = singleRotateRR(root->left);
         }
 
-        // perform the final zig rotation if the searched node has a parent
+        /* Perform the second rotation (or single Zig at root) */
         return root->left == NULL ? root : singleRotateLL(root);
     } else {
-        if(root->right == NULL) return root; // the key is not in the tree
+        /* Target key lies in the right subtree */
+        if(root->right == NULL) return root; /* Key is not in the tree; splay last visited */
 
-        if(key > root->right->key){ // zag-zag: continue searching in the right-right subtree
+        if(key > root->right->key){
+            /* Zag-Zag (Right-Right): splay in right-right grandchild, then rotate grandparent first */
             root->right->right = findSplay(root->right->right, key);
             root = singleRotateRR(root);
-        } else if(key < root->right->key){ // zag-zig: continue searching in the right-left subtree
+        } else if(key < root->right->key){
+            /* Zag-Zig (Right-Left): splay in right-left grandchild, then rotate parent first */
             root->right->left = findSplay(root->right->left, key);
             if(root->right->left != NULL)
                 root->right = singleRotateLL(root->right);
         }
 
-        // perform the final zag rotation if the searched node has a parent
+        /* Perform the second rotation (or single Zag at root) */
         return root->right == NULL ? root : singleRotateRR(root);
     }
 }
 
-
-SplayTreeNode* insertSplay(SplayTreeNode* root, int key){ // implement the insert operation with splay
+/*
+ * Insert 'key' into the Splay Tree via splay-and-split.
+ * Splays the closest existing key to the root, then splits the tree around the new root.
+ */
+SplayTreeNode* insertSplay(SplayTreeNode* root, int key){
+    /* If the tree is empty, create and return a single-node tree */
     if(!root){
         root = (SplayTreeNode*)malloc(sizeof(SplayTreeNode));
         if(root == NULL) return NULL;
@@ -100,44 +132,57 @@ SplayTreeNode* insertSplay(SplayTreeNode* root, int key){ // implement the inser
         return root;
     }
 
-    root = findSplay(root, key); // splay the key or the last accessed node to the root
-    if(root->key == key) return root; // do not insert a duplicate key
+    /* Splay the key (or the closest neighbor) to the root */
+    root = findSplay(root, key);
+    if(root->key == key) return root; /* Key already exists; ignore duplicate */
 
+    /* Allocate the new root node and split the old root into left and right subtrees */
     SplayTreeNode* newRoot = (SplayTreeNode*)malloc(sizeof(SplayTreeNode));
     if(newRoot == NULL) return root;
     newRoot->key = key;
 
     if(key < root->key){
-        newRoot->left = root->left; // split the tree at the new key
+        /* New key is smaller than splayed root: old root becomes right child */
+        newRoot->left = root->left;
         newRoot->right = root;
         root->left = NULL;
     } else {
-        newRoot->right = root->right; // split the tree at the new key
+        /* New key is larger than splayed root: old root becomes left child */
+        newRoot->right = root->right;
         newRoot->left = root;
         root->right = NULL;
     }
     return newRoot;
 }
 
-SplayTreeNode* deleteSplay(SplayTreeNode* root, int key){ // implement the delete operation with splay
+/*
+ * Delete 'key' from the Splay Tree via splay-and-join.
+ * Splays target key to the root, removes it, and joins its left and right subtrees.
+ */
+SplayTreeNode* deleteSplay(SplayTreeNode* root, int key){
     if(!root) return NULL;
-    root = findSplay(root, key); // splay the node to be deleted to the root
-    if(root->key != key) return root; // key not found
+
+    /* Splay the target key to the root; if absent, return the splayed tree */
+    root = findSplay(root, key);
+    if(root->key != key) return root;
 
     SplayTreeNode* newRoot;
     if(root->left == NULL){
+        /* No left subtree: promote right subtree directly */
         newRoot = root->right;
     } else {
-        // key is greater than every key in the left subtree, so its maximum becomes the root
+        /* Splay the maximum element of the left subtree (all keys < key) to its root */
         newRoot = findSplay(root->left, key);
-        newRoot->right = root->right; // join the original right subtree
+        /* Attach the original right subtree to the new root's empty right link */
+        newRoot->right = root->right;
     }
     free(root);
     return newRoot;
 }
 
-
-
+/*
+ * Recursively export Splay Tree edges in Graphviz DOT format.
+ */
 void exportSPLAYDOT(SplayTreeNode* root, FILE* fp) {
     if (root == NULL) return;
 
@@ -155,8 +200,11 @@ void exportSPLAYDOT(SplayTreeNode* root, FILE* fp) {
     exportSPLAYDOT(root->right, fp);
 }
 
+/*
+ * Export the Splay Tree to a DOT file and render it as a PNG image.
+ */
 void visualizeSPLAY(SplayTreeNode* root) {
-    /* Support launching the testbench from either the project root or src. */
+    /* Support launching the testbench from either the project root or src */
     const char* dir = ACCESS("src", 0) == 0
                         ? "src/visualizations"
                         : "visualizations";
@@ -200,5 +248,3 @@ void visualizeSPLAY(SplayTreeNode* root) {
                 dotPath);
     }
 }
-
-

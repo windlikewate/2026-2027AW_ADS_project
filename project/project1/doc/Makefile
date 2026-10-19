@@ -43,7 +43,7 @@ all: $(PDFS)
 		echo "  编译: $*.pdf"; \
 		echo "==============================="; \
 		$(TEX) $(TEXFLAGS) $< || true; \
-		if [ -f $*.bcf ]; then $(BIBTOOL) $* || true; fi; \
+		if [ -f $*.bcf ]; then $(BIBTOOL) $* || true; $(TEX) $(TEXFLAGS) $< || true; fi; \
 		$(TEX) $(TEXFLAGS) $<; \
 		echo "  => $*.pdf 完成 ✓"; \
 	fi
