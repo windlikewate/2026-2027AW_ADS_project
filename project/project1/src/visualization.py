@@ -44,8 +44,17 @@ for scenario, scenario_title in scenarios.items():
                 label=tree
             )
 
+        # On a linear axis, BST's Θ(N²) ordered insertion and reverse deletion
+        # flatten the other four curves. A log axis keeps that gap and shows Splay below them.
+        use_log = (
+            (column == "insert_seconds" and scenario in ("ordered", "ordered_reverse"))
+            or (scenario == "ordered_reverse" and column == "delete_seconds")
+        )
+        if use_log:
+            plt.yscale("log")
+
         plt.xlabel("Number of Nodes (N)")
-        plt.ylabel("Time (seconds)")
+        plt.ylabel("Time (seconds, log scale)" if use_log else "Time (seconds)")
         plt.title(f"{operation_title} - {scenario_title}")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
