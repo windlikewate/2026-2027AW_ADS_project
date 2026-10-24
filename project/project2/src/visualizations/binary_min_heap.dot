@@ -1,0 +1,19 @@
+digraph BINARY_MIN_HEAP {
+    graph [rankdir=TB];
+    node [shape=circle, style=filled, fillcolor="lightblue"];
+    n0 [label="-20"];
+    n1 [label="0"];
+    n2 [label="80"];
+    n3 [label="30"];
+    n4 [label="45"];
+    n5 [label="925"];
+    n6 [label="125"];
+    n7 [label="75"];
+    n0 -> n1;
+    n0 -> n2;
+    n1 -> n3;
+    n1 -> n4;
+    n2 -> n5;
+    n2 -> n6;
+    n3 -> n7;
+}

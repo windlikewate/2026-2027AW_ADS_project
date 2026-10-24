@@ -1,0 +1,33 @@
+digraph FIBONACCI_HEAP {
+    graph [rankdir=TB];
+    node [shape=circle, style=filled];
+    n00000227D8C941C0 [label="3\ndegree=2", fillcolor="gold", peripheries=2];
+    n00000227D8C941C0 -> n00000227D8C934C0;
+    n00000227D8C941C0 -> n00000227D8C94140;
+    n00000227D8C934C0 [label="38\ndegree=0", fillcolor="lightblue"];
+    n00000227D8C94140 [label="26\ndegree=1", fillcolor="lightblue"];
+    n00000227D8C94140 -> n00000227D8C93800;
+    n00000227D8C93800 [label="46\ndegree=0", fillcolor="lightblue"];
+    n00000227D8C93640 [label="7\ndegree=3", fillcolor="lightblue"];
+    n00000227D8C93640 -> n00000227D8C93840;
+    n00000227D8C93640 -> n00000227D8C93BC0;
+    n00000227D8C93640 -> n00000227D8C93F80;
+    n00000227D8C93840 [label="11\ndegree=0", fillcolor="lightblue"];
+    n00000227D8C93BC0 [label="17\ndegree=2", fillcolor="lightblue"];
+    n00000227D8C93BC0 -> n00000227D8C93C00;
+    n00000227D8C93BC0 -> n00000227D8C93440;
+    n00000227D8C93C00 [label="24\ndegree=0", fillcolor="lightblue"];
+    n00000227D8C93440 [label="21\ndegree=1", fillcolor="lightblue"];
+    n00000227D8C93440 -> n00000227D8C93EC0;
+    n00000227D8C93EC0 [label="23\ndegree=0", fillcolor="lightblue"];
+    n00000227D8C93F80 [label="30\ndegree=2", fillcolor="lightblue"];
+    n00000227D8C93F80 -> n00000227D8C93F40;
+    n00000227D8C93F80 -> n00000227D8C93F00;
+    n00000227D8C93F40 [label="52\ndegree=0", fillcolor="lightblue"];
+    n00000227D8C93F00 [label="39\ndegree=1", fillcolor="lightblue"];
+    n00000227D8C93F00 -> n00000227D8C93480;
+    n00000227D8C93480 [label="41\ndegree=0", fillcolor="lightblue"];
+    { rank=same; n00000227D8C941C0; n00000227D8C93640; }
+    n00000227D8C941C0 -> n00000227D8C93640 [style=dashed, color=gray, constraint=false];
+    n00000227D8C93640 -> n00000227D8C941C0 [style=dashed, color=gray, constraint=false];
+}
