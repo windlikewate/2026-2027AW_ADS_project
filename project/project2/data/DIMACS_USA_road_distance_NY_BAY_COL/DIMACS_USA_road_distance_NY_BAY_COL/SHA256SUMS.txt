@@ -1,0 +1,3 @@
+37f5b3eff82330850466956b6c036a8ab8551512bdc7509edca1d4c6cf943fa3  NY_纽约/USA-road-d.NY.gr
+75a1a78d1f1bd1d8d86b2dc81b0c2ac30f701e078c514c9f9b953130b83f979e  BAY_旧金山湾区/USA-road-d.BAY.gr
+2d5510bdc742cf027c0ce90f5d9eebeace29c7431f54f31be015d2ddac070343  COL_科罗拉多/USA-road-d.COL.gr

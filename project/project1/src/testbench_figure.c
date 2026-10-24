@@ -30,6 +30,7 @@ int main(){
     for(int i = 0; i < 10; i++){
         splayRoot = insertSplay(splayRoot, i);
     }
+    splayRoot = deleteSplay(splayRoot,0);
     visualizeSPLAY(splayRoot);
 
     /* 4. Build a Red-Black Tree with keys 10..19, delete key 15, and visualize */
