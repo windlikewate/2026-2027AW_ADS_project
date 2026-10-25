@@ -7,7 +7,7 @@
 #include <time.h>
 
 #ifdef _WIN32
-#include <io.h>
+#include <io.h> //跨平台兼容使用
 #else
 #include <dirent.h>
 #include <sys/stat.h>
@@ -23,7 +23,7 @@ static int fileExists(const char* path){
         return 0;
     fclose(fp);
     return 1;
-}
+}//即检查文件是否可读
 
 static int equalsIgnoreCase(const char* left, const char* right){
     /* Dataset aliases are accepted without making their case significant. */
@@ -35,14 +35,15 @@ static int equalsIgnoreCase(const char* left, const char* right){
     }
     return *left == '\0' && *right == '\0';
 }
+//忽略路径名输入时的大小写
 
 int resolveRoadDataset(const char* input, char* output, size_t outputSize){
     /* Resolve either a caller-supplied path or a known DIMACS dataset alias. */
     if(input == NULL || output == NULL || outputSize == 0)
         return 0;
     if(fileExists(input)){
-        snprintf(output, outputSize, "%s", input);
-        return 1;
+        snprintf(output, outputSize, "%s", input); //一个更安全的字符串拷贝方式
+        return 1; //如果文件路径存在，则直接打开
     }
 
     const char* filename = NULL;
@@ -83,7 +84,7 @@ int resolveRoadDataset(const char* input, char* output, size_t outputSize){
                 }
             }while(_findnext(search, &entry) == 0);
             _findclose(search);
-        }
+        }// 找到所在的子目录并拼接出完整的文件路径，只对于Windows平台有效
 #else
         DIR* directory = opendir(prefixes[i]);
         if(directory != NULL){
@@ -119,10 +120,10 @@ RoadGraph* loadDIMACSGraph(const char* path){
 
     RoadGraph* graph = NULL;
     char line[256];
-    while(fgets(line, sizeof(line), fp) != NULL){
-        if(line[0] == 'c' || line[0] == '\n' || line[0] == '\r')
+    while(fgets(line, sizeof(line), fp) != NULL){ //从文件流中读取一行字符串
+        if(line[0] == 'c' || line[0] == '\n' || line[0] == '\r') //若判定为注释或者换行或者回到行首
             continue;
-        if(line[0] == 'p'){
+        if(line[0] == 'p'){ //p sp n m：节点数 n、有向边数 m。
             int vertices = 0;
             int edges = 0;
             if(sscanf(line, "p sp %d %d", &vertices, &edges) != 2 ||
@@ -168,7 +169,7 @@ RoadGraph* loadDIMACSGraph(const char* path){
             graph->edges[index].weight = weight;
             graph->edges[index].next = graph->head[from];
             graph->head[from] = index;
-        }
+        } //用边数组 + 头指针数组，把每个节点的所有出边串成一条链表
     }
     fclose(fp);
 
@@ -189,7 +190,7 @@ void destroyRoadGraph(RoadGraph* graph){
     free(graph);
 }
 
-static int64_t* createDistanceArray(int vertexCount){
+static int64_t* createDistanceArray(int vertexCount){  //创建距离矩阵 这里用int_64t防止路径求和距离溢出
     /* INT64_MAX represents infinity for vertices not reached yet. */
     int64_t* distance = (int64_t*)malloc((size_t)(vertexCount + 1) *
                                          sizeof(int64_t));
@@ -201,18 +202,18 @@ static int64_t* createDistanceArray(int vertexCount){
 }
 
 static DijkstraResult dijkstraBinary(const RoadGraph* graph, int source,
-                                     int target){
+                                     int target){  //用最小二叉堆来实现Dijkstra算法
     /* The binary heap uses lazy insertion instead of an explicit decrease-key. */
     DijkstraResult result = {0, INT64_MAX, 0, 0.0};
     int64_t* distance = createDistanceArray(graph->vertexCount);
-    BinaryMinHeap* queue = createBinaryMinHeap(64);
+    BinaryMinHeap* queue = createBinaryMinHeap(64); // 初始容量设为64
     if(distance == NULL || queue == NULL){
         free(distance);
         destroy(queue);
         return result;
     }
 
-    clock_t start = clock();
+    clock_t start = clock();  //记录运行时间起点
     distance[source] = 0;
     insertBinaryMinHeapEntry(queue, 0, source);
     while(queue->size > 0){

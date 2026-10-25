@@ -17,8 +17,9 @@ DIJKSTRA_EXE = dijkstra.exe
 BENCH_EXE = testbench_dijkstra_time.exe
 DATASET ?= NY
 MAX_QUERIES ?= 1000
+MIN_QUERIES ?= 100
 STEP ?= 100
-REPETITIONS ?= 3
+REPETITIONS ?= 1
 CSV ?= dijkstra_runtime_$(DATASET).csv
 
 .PHONY: all benchmark plot test clean
@@ -34,7 +35,7 @@ $(BENCH_EXE): dijkstra.c testbench_dijkstra_time.c dijkstra.h binary_min_heap.h 
 	$(COMPILE)
 
 benchmark: $(BENCH_EXE)
-	./$(BENCH_EXE) $(DATASET) $(MAX_QUERIES) $(STEP) $(REPETITIONS) $(CSV)
+	./$(BENCH_EXE) $(DATASET) $(MAX_QUERIES) $(MIN_QUERIES) $(STEP) $(REPETITIONS) $(CSV)
 
 plot:
 	$(PYTHON) visualization.py $(CSV)
@@ -47,5 +48,9 @@ test: testbench_dijkstra.exe
 	./testbench_dijkstra.exe
 
 clean:
+ifeq ($(OS),Windows_NT)
+	-powershell -NoProfile -Command "Remove-Item -Force -ErrorAction SilentlyContinue *.exe,*.csv,visualizations/dijkstra_runtime_*.png"
+else
 	$(RM) *.exe *.csv
 	$(RM) visualizations/dijkstra_runtime_*.png
+endif

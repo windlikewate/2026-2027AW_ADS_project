@@ -16,7 +16,7 @@ static int parseVertex(const char* text, int* value){
         return 0;
     *value = (int)parsed;
     return 1;
-}
+} //将输入的字符串改成可以识别的节点
 
 static void printResult(const char* name, int source, int target,
                         DijkstraResult result){

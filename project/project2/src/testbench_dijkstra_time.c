@@ -1,7 +1,7 @@
 /*
  * Benchmark Dijkstra on reproducible source/target pairs.
- * Usage: testbench_dijkstra_time [dataset] [maxQueries] [step] [repetitions] [output.csv]
- * Defaults: NY 1000 100 3 dijkstra_runtime.csv
+ * Usage: testbench_dijkstra_time [dataset] [maxQueries] [minQueries] [step] [repetitions] [output.csv]
+ * Defaults: NY 1000 100 100 1 dijkstra_runtime.csv
  */
 
 #include "dijkstra.h"
@@ -44,7 +44,7 @@ static uint32_t nextRandom(uint32_t* state){
     value ^= value << 5;
     *state = value;
     return value;
-}
+} //一个伪随机数生成器 由于是自己实现 因此可以复现
 
 static Query* createQueries(int count, int vertexCount, uint32_t seed){
     /* Generate a fixed sequence of valid, non-self source/target queries. */
@@ -65,9 +65,9 @@ static double benchmarkTime(void){
 #ifdef _WIN32
     LARGE_INTEGER frequency;
     LARGE_INTEGER counter;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&counter);
-    return (double)counter.QuadPart / (double)frequency.QuadPart;
+    QueryPerformanceFrequency(&frequency); // 获取频率
+    QueryPerformanceCounter(&counter); // 获取次数
+    return (double)counter.QuadPart / (double)frequency.QuadPart; // 获取秒
 #else
     struct timespec now;
     timespec_get(&now, TIME_UTC);
@@ -96,25 +96,28 @@ static void runBatch(const RoadGraph* graph, const Query* queries, int count,
 int main(int argc, char** argv){
     /* Run the same query prefixes for each heap and query-count measurement. */
     setvbuf(stdout, NULL, _IOLBF, 0);
-    if(argc > 6){
+    if(argc > 7){
         fprintf(stderr,
-                "Usage: %s [NY|BAY|COL|graph.gr] [maxQueries] [step] "
-                "[repetitions] [output.csv]\n",
+                "Usage: %s [NY|BAY|COL|graph.gr] [maxQueries] [minQueries] "
+                "[step] [repetitions] [output.csv]\n",
                 argv[0]);
         return EXIT_FAILURE;
     }
 
     const char* dataset = argc > 1 ? argv[1] : "NY";
     int maxQueries = 1000;
+    int minQueries = 100;
     int step = 100;
-    int repetitions = 3;
-    const char* csvPath = argc > 5 ? argv[5] : "dijkstra_runtime.csv";
+    int repetitions = 1;
+    const char* csvPath = argc > 6 ? argv[6] : "dijkstra_runtime.csv";
     if((argc > 2 && !parsePositive(argv[2], &maxQueries)) ||
-       (argc > 3 && !parsePositive(argv[3], &step)) ||
-       (argc > 4 && !parsePositive(argv[4], &repetitions)) ||
-       maxQueries < 1000 || step > maxQueries){
+       (argc > 3 && !parsePositive(argv[3], &minQueries)) ||
+       (argc > 4 && !parsePositive(argv[4], &step)) ||
+       (argc > 5 && !parsePositive(argv[5], &repetitions)) ||
+       maxQueries < 1000 || minQueries < 100 || minQueries > maxQueries ||
+       step > maxQueries || repetitions < 1){
         fprintf(stderr,
-                "maxQueries must be >= 1000; step and repetitions must be positive.\n");
+                "maxQueries must be >= 1000 and minQueries must be >= 100 and step and repetitions must be positive.\n");
         return EXIT_FAILURE;
     }
 
@@ -145,7 +148,7 @@ int main(int argc, char** argv){
     /* A fixed seed makes runs reproducible across platforms and heap types. */
     uint32_t seed = UINT32_C(0x6d2b79f5);
     int status = EXIT_SUCCESS;
-    for(int queryCount = step; queryCount <= maxQueries;){
+    for(int queryCount = minQueries; queryCount <= maxQueries;){
         Query* queries = createQueries(queryCount, graph->vertexCount, seed);
         if(queries == NULL){
             fprintf(stderr, "Failed to allocate query pairs.\n");

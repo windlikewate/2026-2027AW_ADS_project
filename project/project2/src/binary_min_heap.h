@@ -102,7 +102,7 @@ static void siftdown(BinaryMinHeap* heap, int index){ // sift down the element a
     }
 }
 
-void insertBinaryMinHeapEntry(BinaryMinHeap* heap, int64_t value, int vertex){
+static void insertBinaryMinHeapEntry(BinaryMinHeap* heap, int64_t value, int vertex){
     if (heap == NULL)
         return;
     if(heap->size == heap->capacity){
@@ -128,17 +128,17 @@ void insertBinaryMinHeapEntry(BinaryMinHeap* heap, int64_t value, int vertex){
     heap->size++;
 }
 
-void insert(BinaryMinHeap* heap, int64_t value){
+static void insert(BinaryMinHeap* heap, int64_t value){
     insertBinaryMinHeapEntry(heap, value, -1);
 }
 
-int64_t getMin(const BinaryMinHeap* heap){ //get the minimum element from the binary min heap
+static int64_t getMin(const BinaryMinHeap* heap){ //get the minimum element from the binary min heap
     if(heap == NULL || heap->size == 0)
         return INT64_MAX; // if the heap is empty, return a large value
     return heap->data[0]; // the root element is the minimum
 }
 
-bool extractMinBinaryEntry(BinaryMinHeap* heap, int64_t* value, int* vertex){
+static bool extractMinBinaryEntry(BinaryMinHeap* heap, int64_t* value, int* vertex){
     if(heap == NULL || heap->size == 0){
         return false;
     }
@@ -155,11 +155,11 @@ bool extractMinBinaryEntry(BinaryMinHeap* heap, int64_t* value, int* vertex){
     return true;
 }
 
-void extractMin(BinaryMinHeap* heap){ // extract the minimum element from the binary min heap
+static void extractMin(BinaryMinHeap* heap){ // extract the minimum element from the binary min heap
     (void)extractMinBinaryEntry(heap, NULL, NULL);
 }
 
-void destroy(BinaryMinHeap* heap){ // destroy the binary min heap
+static void destroy(BinaryMinHeap* heap){ // destroy the binary min heap
     if(heap){
         free(heap->data);
         free(heap->vertices);
@@ -172,7 +172,7 @@ void destroy(BinaryMinHeap* heap){ // destroy the binary min heap
  * Export an array-backed binary heap in Graphviz DOT format.  Array indices
  * are stable, portable node identifiers; heap values are labels only.
  */
-void exportBinaryMinHeapDOT(const BinaryMinHeap* heap, FILE* fp) {
+static void exportBinaryMinHeapDOT(const BinaryMinHeap* heap, FILE* fp) {
     if (heap == NULL || fp == NULL)
         return;
 
@@ -198,7 +198,7 @@ void exportBinaryMinHeapDOT(const BinaryMinHeap* heap, FILE* fp) {
 /*
  * Export the binary min heap to a DOT file and render it as a PNG image.
  */
-void visualizeBinaryMinHeap(const BinaryMinHeap* heap) {
+static void visualizeBinaryMinHeap(const BinaryMinHeap* heap) {
     /* Support launching the testbench from either the project root or src */
     const char* dir = ACCESS("src", 0) == 0
                         ? "src/visualizations"
