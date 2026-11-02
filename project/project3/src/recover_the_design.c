@@ -1,6 +1,21 @@
+/*
+ * File: recover_the_design.c
+ * Description: Depth-first search over the candidate fences built in
+ *              recover_the_design.h. Each edge is taken or skipped.
+ *              The first feasible layout is kept. Inclusion is tried
+ *              before exclusion, which fixes which drawing is printed.
+ */
+
 #include "recover_the_design.h"
+/*
+ * Decide edges[index .. edge_num - 1].
+ * The taken branch is tried before the skipped branch.
+ * A skipped edge is explored only when both endpoints can still
+ * meet their required degree with the edges that remain.
+ */
 bool backtrack(Graph* g,int index){
-    // Every selected edge contributes two to the total degree.
+    /* Every selected fence has two endpoints, so the degree sum is even. */
+    /* An odd sum is rejected here, before any edge is decided. */
     if(index == 0){
         int degree_sum = 0;
         for(int i = 0; i < g->rows * g->columns; i++){
@@ -15,24 +30,24 @@ bool backtrack(Graph* g,int index){
             if(g->current_degree[FlattenIndex(g->vertices[i].x, g->vertices[i].y, g->columns)] != g->vertices[i].degree){
                 return false;
             }
-        }// in this case, all edges have been selected, check if the degree of each vertex is equal to the degree of the vertex
+        } /* Leaf: every cell must meet its required degree exactly. */
         return true;
     }
-    // Try to select the edge
+    /* Branch 1: take edges[index] and test it in check_edge. */
     g->edges[index].is_selected = true;
     g->current_degree[FlattenIndex(g->edges[index].from.x, g->edges[index].from.y, g->columns)]++;
     g->current_degree[FlattenIndex(g->edges[index].to.x, g->edges[index].to.y, g->columns)]++;
     if(check_edge(g,index)){
         if(backtrack(g,index+1)){
-            return true;
+            return true; /* A layout was found under this choice. */
         }
     }
-    // Try to not select the edge
+    /* Branch 2: put the edge back and restore both endpoint degrees. */
     g->edges[index].is_selected = false;
     g->current_degree[FlattenIndex(g->edges[index].from.x, g->edges[index].from.y, g->columns)]--;
     g->current_degree[FlattenIndex(g->edges[index].to.x, g->edges[index].to.y, g->columns)]--;
-    /* Reject this branch immediately if either endpoint can no longer
-    reach its required degree, rather than waiting for the leaf.*/
+    /* Skip this branch when either endpoint is already short of edges. */
+    /* count_remaining_edges counts only candidates after this index. */
     Vertex from = g->edges[index].from;
     Vertex to = g->edges[index].to;
     if(g->current_degree[FlattenIndex(from.x, from.y, g->columns)]
@@ -43,10 +58,15 @@ bool backtrack(Graph* g,int index){
             return true;
         }
     }
-    return false;
+    return false; /* Neither branch produced a feasible layout. */
 }
 
 
+
+/*
+ * Read n and m, build the candidate graph, and print one layout.
+ * The drawing, or the line "No Solution", follows "The answer is:".
+ */
 int main(void){
     Graph g;
     int rows,columns;
