@@ -114,7 +114,7 @@ SplayTreeNode* findSplay(SplayTreeNode* root, int key){
 
         /* Perform the second rotation (or single Zag at root) */
         return root->right == NULL ? root : singleRotateRR(root);
-    }
+    }//可以看出是先做下面的旋转，再做上面的旋转
 }
 
 /*
