@@ -1,0 +1,848 @@
+% !TeX program = xelatex
+\documentclass[10pt, a4paper]{article}
+
+\newif\ifpeerreview
+\peerreviewfalse % Set \peerreviewtrue for anonymous Pintia peer-review submission
+
+\usepackage{amsmath, amssymb, amsthm, mathtools}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage[x11names]{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usepackage{microtype}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{skins, breakable}
+\usepackage[backend=biber, citestyle=numeric-comp, bibstyle=numeric]{biblatex}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage[capitalise, noabbrev]{cleveref}
+
+\usetikzlibrary{arrows.meta, calc, positioning}
+
+% --- Palette: Navy + Amber Gold + Sage ---
+\definecolor{primary}{RGB}{28, 55, 90}
+\definecolor{accent}{RGB}{176, 128, 52}
+\definecolor{accentlight}{RGB}{232, 214, 178}
+\definecolor{problembg}{RGB}{250, 248, 243}
+\definecolor{problemframe}{RGB}{210, 220, 232}
+\definecolor{textmuted}{RGB}{95, 105, 118}
+\definecolor{coverbg}{RGB}{252, 249, 238}
+\definecolor{progcolor}{RGB}{52, 105, 88}
+
+% --- Page Geometry & Header/Footer ---
+\geometry{left=2.4cm, right=2.4cm, top=2.6cm, bottom=2.6cm}
+\setlength{\headheight}{18pt}
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0.38em}
+\linespread{1.15}
+\emergencystretch=2em
+\setlist{nosep, leftmargin=1.8em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{primary}\textsf{ADS Project 4: Improving Dynamic Programming for Knapsack}}
+\fancyhead[R]{\small\color{textmuted}\textsf{Fall--Winter 2026}}
+\fancyfoot[C]{\small\color{textmuted}\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{%
+  {\color{accent!55}\hrule width\headwidth height 0.5pt}%
+}
+
+% --- Section & Subsection Headings ---
+\titleformat{\section}
+  {\color{primary}\centering\Large\bfseries}
+  {\color{accent}Chapter~\thesection.}{0.6em}{}
+  [\vspace{0.3em}{\color{accent!70}\titlerule[1.5pt]}]
+
+\titleformat{name=\section,numberless}
+  {\color{primary}\centering\Large\bfseries}
+  {}{0pt}{}
+  [\vspace{0.3em}{\color{accent!70}\titlerule[1.5pt]}]
+
+\titleformat{\subsection}
+  {\color{primary!88!black}\large\bfseries}
+  {\color{accent}\thesubsection}{0.6em}{}
+  [\vspace{0.15em}{\color{accent!45}\titlerule[0.8pt]}]
+
+\titleformat{\subsubsection}
+  {\color{primary!85!black}\normalsize\bfseries}
+  {\color{accent}\thesubsubsection}{0.5em}{}
+
+\titlespacing*{\section}{0pt}{0.6em}{1.0em}
+\titlespacing*{\subsection}{0pt}{1.0em}{0.6em}
+\titlespacing*{\subsubsection}{0pt}{0.8em}{0.4em}
+
+% --- TOC Styling ---
+\renewcommand{\cftsecfont}{\bfseries\color{primary}}
+\renewcommand{\cftsecpagefont}{\bfseries\color{primary}}
+\renewcommand{\cftsubsecfont}{\color{black!85}}
+\renewcommand{\cftsubsubsecfont}{\small\color{textmuted}}
+\setlength{\cftbeforesecskip}{0.55em}
+
+% --- Styled Boxes ---
+\newtcolorbox{theorembx}[1]{
+    enhanced,
+    breakable,
+    colback=problembg,
+    colframe=primary!30,
+    boxrule=0.7pt,
+    arc=3.5pt,
+    borderline west={3.2pt}{0pt}{primary},
+    left=12pt,
+    right=12pt,
+    top=7pt,
+    bottom=8pt,
+    before skip=7pt plus 2pt,
+    after skip=8pt plus 2pt,
+    title={\sffamily #1},
+    fonttitle=\bfseries,
+    coltitle=white,
+    colbacktitle=primary,
+    attach boxed title to top left={yshift=-2mm, xshift=8mm},
+    boxed title style={
+        arc=2.2pt,
+        boxrule=0pt,
+        top=1.8pt,
+        bottom=1.8pt,
+        left=6pt,
+        right=6pt,
+    },
+}
+
+\newtcolorbox{lemmabx}[1]{
+    enhanced,
+    breakable,
+    colback=accentlight!22,
+    colframe=accent!45,
+    boxrule=0.65pt,
+    arc=3.5pt,
+    borderline west={3.0pt}{0pt}{accent!80},
+    left=12pt,
+    right=12pt,
+    top=7pt,
+    bottom=8pt,
+    before skip=7pt plus 2pt,
+    after skip=8pt plus 2pt,
+    title={\sffamily #1},
+    fonttitle=\bfseries,
+    coltitle=primary,
+    colbacktitle=accentlight!85,
+    attach boxed title to top left={yshift=-2mm, xshift=8mm},
+    boxed title style={
+        arc=2.2pt,
+        boxrule=0.5pt,
+        colframe=accent!55,
+        top=1.8pt,
+        bottom=1.8pt,
+        left=6pt,
+        right=6pt,
+    },
+}
+
+\newtcolorbox{insightbox}[1]{
+    enhanced,
+    breakable,
+    colback=progcolor!5.5,
+    colframe=progcolor!28,
+    boxrule=0.7pt,
+    arc=4pt,
+    borderline west={3.5pt}{0pt}{progcolor},
+    left=13pt,
+    right=13pt,
+    top=8pt,
+    bottom=9pt,
+    before skip=8pt plus 2pt,
+    after skip=9pt plus 2pt,
+    title={\sffamily #1},
+    fonttitle=\bfseries,
+    coltitle=white,
+    colbacktitle=progcolor,
+    attach boxed title to top left={yshift=-2mm, xshift=8mm},
+    boxed title style={
+        arc=2.5pt,
+        boxrule=0pt,
+        top=2pt,
+        bottom=2pt,
+        left=7pt,
+        right=7pt,
+    },
+}
+
+% --- Code Listings & Captions ---
+\newcommand{\code}[1]{\texttt{\color{primary!90!black}#1}}
+\newcommand{\kw}[1]{\textbf{\color{primary}#1}}
+\newcommand{\id}[1]{\ensuremath{\mathrm{#1}}}
+\captionsetup{labelfont={bf,color=primary}, skip=4pt}
+\BeforeBeginEnvironment{tabular}{\small}
+
+\lstset{
+    language=C,
+    basicstyle=\ttfamily\scriptsize,
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{progcolor}\itshape,
+    stringstyle=\color{accent},
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny\color{textmuted},
+    frame=single,
+    rulecolor=\color{problemframe},
+    backgroundcolor=\color{problembg},
+    captionpos=b,
+    tabsize=4,
+    columns=fullflexible,
+    showstringspaces=false
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    citecolor=progcolor,
+    urlcolor=accent,
+    linktoc=all,
+    pdfauthor={},
+    pdftitle={Improving Dynamic Programming for the 0/1 Knapsack Problem}
+}
+
+\graphicspath{{../src/visualizations/}{../plots/}{image/}{figure/}}
+\addbibresource[location=local]{reference.bib}
+
+\begin{document}
+
+% ============================================================
+%  PAGE 1: DEDICATED COVER + ABSTRACT PAGE
+% ============================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+    \fill[coverbg] (current page.south west) rectangle (current page.north east);
+    \draw[accent!40, line width=0.7pt]
+        ([xshift=1.5cm, yshift=-1.5cm]current page.north west) --
+        ([xshift=1.5cm, yshift=1.5cm]current page.south west);
+    \draw[accent!40, line width=0.7pt]
+        ([xshift=-1.5cm, yshift=-1.5cm]current page.north east) --
+        ([xshift=-1.5cm, yshift=1.5cm]current page.south east);
+    \foreach \r in {2.0, 2.45, 2.9} {
+        \draw[primary!14, line width=0.5pt]
+            ([xshift=-1.35cm, yshift=1.35cm]current page.south east) circle (\r cm);
+        \draw[primary!14, line width=0.5pt]
+            ([xshift=1.35cm, yshift=-1.35cm]current page.north west) circle (\r cm);
+    }
+\end{tikzpicture}
+
+\vspace*{0.7cm}
+\begin{center}
+    {\large\color{accent}\textsf{\textbf{Advanced Data Structures and Algorithm Analysis}}}\\[0.25cm]
+    {\normalsize\color{textmuted}\textsf{Laboratory Project Report $\cdot$ Project 4}}\\[0.55cm]
+
+    {\color{primary}\rule{0.58\textwidth}{1.4pt}}\\[0.5cm]
+    {\fontsize{22}{29}\selectfont\bfseries\color{primary} Improving Dynamic Programming}\\[0.2cm]
+    {\fontsize{22}{29}\selectfont\bfseries\color{primary} for the 0/1 Knapsack Problem}\\[0.45cm]
+    {\color{accent}\rule{0.24\textwidth}{1.0pt}}\\[0.5cm]
+    \ifpeerreview
+        {\Large\bfseries\color{accent}\textsf{Group X}}\\[0.65cm]
+        {\Large\bfseries\color{primary} Student A \hspace{2.8em} Student B}\\[0.35cm]
+    \else
+        {\Large\bfseries\color{accent}\textsf{Group 15}}\\[0.65cm]
+        {\Large\bfseries\color{primary} Yixiang Chen \hspace{2.8em} Runhui Lin}\\[0.35cm]
+    \fi
+    {\normalsize\color{textmuted}
+        Zhejiang University \\[0.15cm]
+        Date: 2026-11-16
+    }
+\end{center}
+
+\vspace{0.65cm}
+\begin{center}
+    {\large\bfseries\color{primary} Abstract}
+\end{center}
+\vspace{-0.2em}
+\begin{quote}
+\small\noindent
+The \textbf{0/1 Knapsack Problem} asks for a subset of $n$ items with maximum total profit subject to a knapsack capacity $c$. While the standard dynamic programming algorithm (\textbf{DP-1}) solves the problem in $\Theta(nc)$ time, it fills every cell of an $(n+1)\times(c+1)$ table even on easy instances and suffers severe memory blowup when $c$ is large. Based on Sections~3.4 and~3.5 of \emph{The Knapsack Problems}, we implement and compare three exact C11 solvers: baseline table-based \textbf{DP-1} (\code{origin}), \textbf{DP-with-Lists} using \textbf{dominance pruning} (\code{list}), and \textbf{DP-with-Upper-Bounds} combining state lists with \textbf{fractional-knapsack upper bounds} (\code{bound}). We evaluate all three algorithms inside an isolated Windows Job Object testbench ($1\,\text{GiB}$ RAM limit, $60\,\text{s}$ timeout) across $500$ large-capacity \textbf{KPLIB} uncorrelated instances ($R = 10{,}000$, $n \in \{50, 100, 200, 500, 1000\}$, $c \in [1.01\times 10^5, 2.61\times 10^6]$) and $951$ fixed-capacity synthetic instances ($c = 1{,}000$, $n \in [50, 1000]$). On large-capacity KPLIB benchmarks, \code{list} and \code{bound} achieve $\mathbf{14.2\times\text{--}56.1\times}$ \textbf{speedups} over \code{origin} for $n \le 200$ and remain fast at $n = 500$ and $1{,}000$ where \code{origin} fails due to exceeding $1\,\text{GiB}$ of memory. Furthermore, our experiments reveal a clear \textbf{bounding-overhead crossover}: \code{bound} is fastest at $n \le 100$ and on dense small-capacity lists ($c = 1{,}000$), whereas per-state $O(n)$ bound evaluation causes pure dominance-pruned \code{list} to outperform \code{bound} by $\mathbf{3.17\times\text{--}6.32\times}$ at $n \in \{500, 1000\}$.
+
+\vspace{0.55em}\noindent
+{\color{primary}\textbf{Keywords:}} 0/1 knapsack problem; dynamic programming; state lists; dominance pruning; fractional knapsack upper bound; KPLIB benchmarking.
+\end{quote}
+
+\vfill
+\begin{center}
+    {\color{accent!80}\rule{0.14\textwidth}{0.8pt}}\\[0.25cm]
+    {\normalsize\bfseries\color{primary} Fall--Winter 2026}
+\end{center}
+\end{titlepage}
+
+% ============================================================
+%  PAGE 2: DEDICATED TABLE OF CONTENTS PAGE
+% ============================================================
+\pagenumbering{roman}
+\thispagestyle{plain}
+\vspace*{0.3cm}
+\tableofcontents
+\clearpage
+
+% ============================================================
+%  CHAPTER 1: INTRODUCTION
+% ============================================================
+\pagenumbering{arabic}
+\section{Introduction}
+
+\subsection{Problem Description}
+Given $n$ items with positive integer weights $w_1, \ldots, w_n$ and non-negative integer profits $p_1, \ldots, p_n$, together with a knapsack of capacity $c$, the \textbf{0/1 Knapsack Problem} selects a subset of items whose total weight does not exceed $c$ so as to maximize total profit:
+\begin{equation}
+  z^* \;=\; \max \left\{ \sum_{j=1}^{n} p_j x_j \;\middle|\; \sum_{j=1}^{n} w_j x_j \le c,\;\; x_j \in \{0, 1\} \text{ for } j = 1, \ldots, n \right\}.
+  \label{eq:kp}
+\end{equation}
+As specified in the assignment, our solvers only need to compute the optimal value $z^*$ rather than reconstructing the chosen subset.
+
+In the ADS course lectures~\cite{ads_slides2026}, this problem is solved by standard dynamic programming (\textbf{DP-1}). Let $P[j][d]$ (written $z_j(d)$ in the reference textbook~\cite{kellerer2004knapsack}) denote the maximum profit achievable using the first $j$ items within capacity $d \in \{0, \ldots, c\}$, with $P[0][d] = 0$ and $P[j][d] = -\infty$ for $d < 0$. Applying the recurrence
+\begin{equation}
+  P[j][d] \;=\; \max\bigl\{\, P[j-1][d],\;\; P[j-1][d - w_j] + p_j \,\bigr\}, \qquad 1 \le j \le n,\;\; 0 \le d \le c,
+  \label{eq:dp1}
+\end{equation}
+computes $(n+1)(c+1)$ table cells in $\Theta(nc)$ time. However, even in the easiest case \textbf{DP-1} still spends $\Theta(nc)$ time updating unreachable or suboptimal capacities, and allocating the full two-dimensional table takes $\Theta(nc)$ memory, which quickly exceeds available RAM when $c$ is large.
+
+To improve practical efficiency while preserving exact optimality, we follow Sections~3.4 and~3.5 of \emph{The Knapsack Problems}~\cite{kellerer2004knapsack} and compare three dynamic programming implementations:
+\begin{itemize}
+  \item \textbf{\color{primary}Baseline Table DP (\code{origin}, DP-1):} Evaluates the dense $(n+1) \times (c+1)$ table via (\ref{eq:dp1}) in $\Theta(nc)$ time and $\Theta(nc)$ space~\cite{ads_slides2026}.
+  \item \textbf{\color{primary}DP-with-Lists (\code{list}, Section~3.4):} Represents stage $j$ as an ordered list $L_j$ of feasible $(w, p)$ states and discards \emph{dominated} states $(w', p')$ with $w \le w'$ and $p \ge p'$ during list merging, improving best-case time to $\Theta(n)$ and running in $O(nB)$ time when at most $B$ undominated states remain~\cite{kellerer2004knapsack}.
+  \item \textbf{\color{primary}DP-with-Upper-Bounds (\code{bound}, Section~3.5):} Sorts items by non-increasing profit-to-weight ratio $p_1/w_1 \ge \cdots \ge p_n/w_n$, tracks the best profit $P^*$ found so far, and prunes any state $(w, p)$ whose greedy fractional-knapsack upper bound over the remaining $n - j$ items does not exceed $P^*$~\cite{kellerer2004knapsack}.
+\end{itemize}
+
+\subsection{Purpose of This Report}
+The goal of this project is to implement the textbook list-based and bound-pruned dynamic programming algorithms in C11 and systematically characterize when and why they outperform classical \textbf{DP-1}. Specifically, we:
+\begin{enumerate}[label=\textbf{\color{primary}\arabic*.}]
+  \item \textbf{Implement Three Exact Knapsack DP Solvers:} Realize dense-table \code{knapsack\_origin} (\code{Knapsack\_origin.h}), dominance-pruned \code{knapsack\_list} (\code{Knapsack\_List.h}), and LP-bounded \code{knapsack\_list\_with\_bound} (\code{Knapsack\_List\_with\_bound.h} and \code{Fraction\_Knapsack.h}).
+  \item \textbf{Conduct Isolated Benchmarks Across Complementary Regimes:} Use the Job-Object-isolated harness \code{testbench.c} and synthetic generator \code{knapsack\_generator.py} to benchmark $500$ large-capacity KPLIB uncorrelated instances ($R = 10{,}000$, $n \in \{50, 100, 200, 500, 1000\}$) alongside $951$ fixed-small-capacity instances ($c = 1{,}000$, $n \in [50, 1000]$), cross-checking exact optimal values across all solvers.
+  \item \textbf{Analyze Complexity, Memory Limits, and Pruning Trade-Offs:} Prove the parameterized and worst-case time/space bounds of all three algorithms and explain the empirical speedup regimes, the $1\,\text{GiB}$ memory wall of \textbf{DP-1}, and the runtime crossover between \code{list} and \code{bound}.
+\end{enumerate}
+
+\clearpage
+
+% ============================================================
+%  CHAPTER 2: DATA STRUCTURE AND ALGORITHM SPECIFICATION
+% ============================================================
+\section{Data Structure and Algorithm Specification}
+
+\subsection{Overview of Solver and Benchmark Data Structures}
+\Cref{tab:structures} summarizes the core C11 data structures implemented across the solver headers (\code{Knapsack\_List.h} and \code{Fraction\_Knapsack.h}) and the isolated batch benchmark harness (\code{testbench.c}). Whereas \code{knapsack\_origin} (\code{Knapsack\_origin.h}) represents stage $i$ implicitly as a dense integer row \code{int* best\_solution[i]} indexed by capacity $d \in [0, c]$, both improved solvers store only reachable, undominated states in contiguous dynamic arrays.
+
+\begin{table}[H]
+\centering
+\caption{Summary of dynamic programming and benchmark data structures implemented in \code{src/}.}
+\label{tab:structures}
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{0.33\linewidth}>{\raggedright\arraybackslash}p{0.43\linewidth}@{}}
+\toprule
+\textbf{\color{primary}Structure} & \textbf{\color{primary}C Fields / Layout} & \textbf{\color{primary}Structural Invariant \& Role} \\
+\midrule
+\code{State} & \code{int weight}, \code{int profit} & Encodes a feasible subproblem pair $(w, p)$ where $w \in [0, c]$; sentinel \code{(INT\_MAX, 0)} marks list termination during merging. \\
+\code{StateList} & \code{State* data}, \code{int size}, \code{int allocated} & Contiguous buffer of \code{size} undominated states satisfying $w_1 < \cdots < w_m$ and $p_1 < \cdots < p_m$, with $\code{size} \le \code{allocated}$. \\
+\code{ItemRatio} & \code{int index}, \code{double ratio} & Pairs 0-based item subscript $i$ with unit profit density $p_i / w_i$ for non-increasing efficiency sorting prior to upper-bound DP. \\
+\code{Instance} & \code{int n}, \code{capacity}, \code{max\_weight}, \code{int* profits}, \code{int* weights} & Validated in-memory representation of a \code{.kp} file in \code{testbench.c}, guarded against 32-bit signed sum and capacity overflow. \\
+\code{Result} & \code{const char* status}, \code{int profit}, \code{double seconds}, \code{DWORD exit\_code} & Records isolated worker status (\code{ok}, \code{timeout}, \code{worker\_failed}), exact profit, and pure QPC solver runtime. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Baseline Table-Based Dynamic Programming (\texttt{origin}, DP-1)}
+In \code{Knapsack\_origin.h}, \code{knapsack\_origin} allocates an array of $n + 1$ row pointers \code{best\_solution[0..n]}, each pointing to a heap buffer of $c + 1$ \code{int} entries. After initializing the base row $\code{best\_solution}[0][0..c] \gets 0$, two nested loops iterate over $i = 1, \ldots, n$ and $j = 0, \ldots, c$: each cell copies the exclusion value $\code{best\_solution}[i-1][j]$ and, whenever $j \ge w_i$, compares it against the inclusion candidate $\code{best\_solution}[i-1][j - w_i] + p_i$. Once cell $(n, c)$ is computed, all $n + 1$ row buffers and the pointer directory are freed before returning \code{best\_solution[n][c]}. Because standard table-based DP is covered in the ADS lectures~\cite{ads_slides2026}, we omit a separate pseudo-code listing and use \textbf{DP-1} as our empirical baseline.
+
+\subsection{Dynamic Programming with Lists and Dominance Pruning (\texttt{list})}
+Following Section~3.4 of Kellerer et al.~\cite{kellerer2004knapsack}, \code{knapsack\_list} replaces dense capacity indexing with an explicit stage list $L_j = \langle (w_{1j}, p_{1j}), \ldots, (w_{m_j,j}, p_{m_j,j}) \rangle$, initialized at $L_0 = \langle (0, 0) \rangle$. Given two feasible states $(w, p)$ and $(w', p')$ in stage $j$, state $(w, p)$ \textbf{dominates} $(w', p')$ if and only if
+\begin{equation}
+  (w < w' \;\text{and}\; p \ge p') \qquad\text{or}\qquad (w \le w' \;\text{and}\; p > p').
+  \label{eq:dominance}
+\end{equation}
+By optimal substructure, extending a dominated state $(w', p')$ by any subset of remaining items $\{j+1, \ldots, n\}$ uses at least as much weight and yields no greater profit than extending $(w, p)$ by the same subset; duplicate states $(w, p) = (w', p')$ are likewise redundant. Removing all dominated and duplicate pairs leaves a strictly totally ordered list of \textbf{undominated states}:
+\[
+  0 \;=\; w_{1j} < w_{2j} < \cdots < w_{m_j,j} \;\le\; c
+  \qquad\text{and}\qquad
+  0 \;=\; p_{1j} < p_{2j} < \cdots < p_{m_j,j}.
+\]
+Consequently, the maximum profit after $n$ items is always stored at the last element of $L_n$, namely $\code{lists[n].data[lists[n].size - 1].profit}$.
+
+At stage $j$, \code{knapsack\_list} first constructs the shifted candidate list $L'_j = L_{j-1} \oplus (w_j, p_j)$ by adding $(w_j, p_j)$ to each state in $L_{j-1}$; because $L_{j-1}$ is sorted by increasing weight, the scan terminates via \kw{break} at the first state with $w + w_j > c$. Next, \code{Mergelist} appends the sentinel \code{(INT\_MAX, 0)} via \code{add\_sentinel} to both $L_{j-1}$ and $L'_j$, seeds $\code{Merged.data}[0] \gets \code{(INT\_MAX, 0)}$, and repeatedly pops the smaller-weight head state $(w, p)$ until both cursors reach \code{INT\_MAX}. Let $(w_{\text{last}}, p_{\text{last}})$ denote the current tail of \code{Merged}:
+\begin{itemize}
+  \item \textbf{\color{primary}Dominated / Duplicate Skip:} For any non-zero state with $p \le p_{\text{last}}$, we have $w \ge w_{\text{last}}$, so $(w, p)$ is dominated by $(w_{\text{last}}, p_{\text{last}})$ and discarded in $O(1)$ time.
+  \item \textbf{\color{primary}Equal-Weight Tail Replacement:} If $p > p_{\text{last}}$ and $w \le w_{\text{last}}$, $(w, p)$ overwrites the tail slot $\code{Merged.data}[\code{flag\_merged}]$.
+  \item \textbf{\color{primary}Undominated State Append:} If $p > p_{\text{last}}$ and $w > w_{\text{last}}$, $(w, p)$ is appended at \code{++flag\_merged} and \code{Merged.size} is incremented.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{2.05cm}p{0.78\textwidth}@{}}
+\toprule
+\multicolumn{2}{@{}l}{\textbf{\color{primary}Algorithm 1:} List-Based DP $\id{knapsack\_list}(n, c, p, w)$ and $\id{Mergelist}(L, L')$ in \code{Knapsack\_List.h}} \\
+\midrule
+\textbf{DP-Lists:} &
+1. Initialize $L_0 \gets \langle (0, 0) \rangle$ with $\code{size} = 1$. \\
+& 2. \kw{for} $j = 1$ \kw{to} $n$ \kw{do} \\
+& 3. \quad Set $L'_j \gets \langle\,\rangle$. \kw{for} $k = 0$ \kw{to} $|L_{j-1}| - 1$ \kw{do}: let $(w, p) \gets L_{j-1}[k]$; \kw{if} $w + w_j > c$ \kw{then break}; append $(w + w_j, p + p_j)$ to $L'_j$. \\
+& 4. \quad $L_j \gets \id{Mergelist}(L_{j-1}, L'_j)$; free temporary buffer $L'_j$. \\
+& 5. Save $z^* \gets L_n[|L_n|-1].\id{profit}$, free $L_0, \ldots, L_n$, and \kw{return} $z^*$. \\[0.3em]
+\textbf{Mergelist:} &
+1. Append sentinel $(\infty, 0)$ to $L$ and $L'$; set $M[0] \gets (\infty, 0)$, $\code{size} \gets 1$, and cursors $i_1 \gets 0, i_2 \gets 0, t \gets 0$. \\
+& 2. \kw{repeat} \\
+& 3. \quad Pop $(w, p) \gets (L[i_1].w < L'[i_2].w) \mathbin{?} L[i_1\text{++}] : L'[i_2\text{++}]$. \\
+& 4. \quad \kw{if} $p > M[t].p$ \kw{or} $(w = 0 \text{ and } p = 0)$ \kw{then} \\
+& 5. \quad\quad \kw{if} $w \le M[t].w$ \kw{then} $M[t] \gets (w, p)$ \kw{else} $M[\text{++}t] \gets (w, p)$ and increment $M.\code{size}$. \\
+& 6. \kw{until} $L[i_1].w = \infty$ \kw{and} $L'[i_2].w = \infty$; \kw{return} $M$. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hybrid List DP with Fractional Knapsack Upper Bounds (\texttt{bound})}
+Dominance pruning only compares combinations of the first $j$ items, retaining states that have no chance of reaching the global optimum via the remaining items $\{j+1, \ldots, n\}$. Following Section~3.5 of \emph{The Knapsack Problems}~\cite{kellerer2004knapsack}, \code{knapsack\_list\_with\_bound} combines list-based DP with branch-and-bound upper-bound pruning.
+
+First, \code{selection\_sort} in \code{Fraction\_Knapsack.h} sorts all $n$ items in non-increasing order of unit profit:
+\begin{equation}
+  \frac{p_1}{w_1} \;\ge\; \frac{p_2}{w_2} \;\ge\; \cdots \;\ge\; \frac{p_n}{w_n}.
+  \label{eq:ratio_order}
+\end{equation}
+For each candidate state $(w, p)$ at stage $j$, \code{fraction\_knapsack} solves the fractional knapsack problem on the remaining items $\{j+1, \ldots, n\}$ with residual capacity $c - w$: whole items are added greedily until the first item $s$ that exceeds the remaining space, giving the integer upper bound
+\begin{equation}
+  U_j(w, p) \;=\; p + \sum_{\ell=j+1}^{s-1} p_\ell + \left\lfloor \frac{p_s \cdot \bigl(c - w - \sum_{\ell=j+1}^{s-1} w_\ell\bigr)}{w_s} \right\rfloor,
+  \label{eq:ub}
+\end{equation}
+or $p + \sum_{\ell=j+1}^{n} p_\ell$ when all remaining items fit.
+
+Let $P^*$ (\code{best\_profit}) record the best feasible profit found so far, initialized to $0$. During merging, \code{Mergelist\_with\_bound} checks $U_j(w, p)$ for every popped state $(w, p)$: if $U_j(w, p) \le P^*$, the state is pruned immediately; otherwise, $P^*$ is updated to $\max(P^*, p)$ and $(w, p)$ enters the dominance check. At $j = n$, \code{fraction\_knapsack} returns $0$ so $U_n(w, p) = p \le P^*$, and the solver returns $P^*$. Algorithm~2 and \Cref{fig:pruning_trace} summarize this procedure.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  x=1.0cm, y=0.86cm,
+  font=\scriptsize,
+  keepst/.style={draw=progcolor, thick, rounded corners=2pt, fill=progcolor!9, text=primary, inner sep=2.2pt, minimum width=12.5mm, align=center, font=\scriptsize\bfseries},
+  domst/.style={draw=textmuted, dashed, rounded corners=2pt, fill=problembg, text=textmuted, inner sep=2.2pt, minimum width=12.5mm, align=center},
+  fathst/.style={draw=Red3!80, thick, rounded corners=2pt, fill=Red3!8, text=Red3!90!black, inner sep=2.2pt, minimum width=12.5mm, align=center},
+  hdr/.style={font=\scriptsize\bfseries\color{primary}, align=center}
+]
+  % Column headers
+  \node[hdr] at (0.0, 3.35) {$j=0$\\init};
+  \node[hdr] at (2.15, 3.35) {$j=1$\\$(2,6)$};
+  \node[hdr] at (4.45, 3.35) {$j=2$\\$(2,3)$};
+  \node[hdr] at (6.85, 3.35) {$j=3$\\$(6,5)$};
+  \node[hdr] at (9.55, 3.35) {$j=4$: $(5,4)$, $P^*\!=18$};
+  \node[hdr] at (12.35, 3.35) {$j=5$\\$(4,2)$};
+
+  % j=0
+  \node[keepst] (s0) at (0.0, 2.3) {$(0,0)$};
+
+  % j=1
+  \node[keepst] (s10) at (2.15, 2.3) {$(0,0)$};
+  \node[keepst] (s11) at (2.15, 1.45) {$(2,6)$};
+
+  % j=2
+  \node[keepst] (s20) at (4.45, 2.3) {$(0,0)$};
+  \node[keepst] (s21) at (4.45, 1.45) {$(2,6)$};
+  \node[domst]  (s2d) at (4.45, 0.60) {$(2,3)$};
+  \node[keepst] (s22) at (4.45, -0.25) {$(4,9)$};
+
+  % j=3
+  \node[fathst] (s3f) at (6.85, 2.3) {$(0,0)$\\[-1pt]{\tiny $U_3\!=\!6$}};
+  \node[keepst] (s31) at (6.85, 1.30) {$(2,6)$};
+  \node[keepst] (s32) at (6.85, 0.45) {$(4,9)$};
+  \node[domst]  (s3d) at (6.85, -0.40) {$(6,5)$};
+  \node[keepst] (s33) at (6.85, -1.25) {$(8,11)$};
+  \node[keepst] (s34) at (6.85, -2.10) {$(10,14)$};
+
+  % j=4 (two subcolumns: pruned vs kept)
+  \node[fathst] (s4f1) at (8.85, 2.3) {$(2,6)$\\[-1pt]{\tiny $U_4\!=\!8$}};
+  \node[fathst] (s4f2) at (8.85, 1.25) {$(4,9)$\\[-1pt]{\tiny $U_4\!=\!11$}};
+  \node[fathst] (s4f3) at (8.85, 0.20) {$(7,10)$\\[-1pt]{\tiny $U_4\!=\!12$}};
+  \node[fathst] (s4f4) at (8.85, -0.85) {$(8,11)$\\[-1pt]{\tiny $U_4\!=\!13$}};
+
+  \node[keepst] (s4k1) at (10.35, 2.3) {$(9,13)$};
+  \node[keepst] (s4k2) at (10.35, 1.45) {$(10,14)$};
+  \node[keepst] (s4k3) at (10.35, 0.60) {$(13,15)$};
+  \node[keepst] (s4k4) at (10.35, -0.25) {$(15,18)$};
+
+  % j=5
+  \node[fathst, minimum width=18mm] (s5f) at (12.35, 1.45) {$L_5 = \langle\,\rangle$\\{\tiny all $U_5 \le 18$}};
+  \node[draw=accent, very thick, rounded corners=2.5pt, fill=accentlight!45, text=primary, inner sep=3pt, align=center, font=\scriptsize\bfseries] (ans) at (12.35, 0.15) {Return\\$P^*\! = 18$};
+
+  % Stage arrows
+  \foreach \xa/\xb in {0.72/1.42, 2.88/3.72, 5.18/6.12, 7.58/8.12, 11.08/11.42} {
+    \draw[-{Stealth[length=1.8mm]}, thick, accent] (\xa, 1.45) -- (\xb, 1.45);
+  }
+  \draw[-{Stealth[length=1.6mm]}, thick, accent] (s5f.south) -- (ans.north);
+
+  % Legend bar
+  \node[keepst, minimum width=9mm] at (2.0, -3.05) {$(w,p)$};
+  \node[anchor=west, font=\scriptsize\color{primary}] at (2.55, -3.05) {Retained undominated state};
+  \node[domst, minimum width=9mm] at (6.45, -3.05) {$(w,p)$};
+  \node[anchor=west, font=\scriptsize\color{textmuted}] at (7.0, -3.05) {Dominance-pruned (\S 3.4)};
+  \node[fathst, minimum width=9mm] at (10.3, -3.05) {$(w,p)$};
+  \node[anchor=west, font=\scriptsize\color{Red3!90!black}] at (10.85, -3.05) {Upper-bound pruned $U_j \le P^*$ (\S 3.5)};
+\end{tikzpicture}
+\caption{\footnotesize State-list evolution and pruning on the demo instance ($n = 5, c = 15$).}
+\label{fig:pruning_trace}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{2.25cm}p{0.76\textwidth}@{}}
+\toprule
+\multicolumn{2}{@{}l}{\textbf{\color{primary}Algorithm 2:} Bounded List DP $\id{knapsack\_list\_with\_bound}$ and $\id{Mergelist\_with\_bound}$} \\
+\midrule
+\textbf{DP-Bounds:} &
+1. Use selection sort to reorder items by $p_1/w_1 \ge \cdots \ge p_n/w_n$; set $L_0 \gets \langle (0,0) \rangle$ and $P^* \gets 0$. \\
+& 2. \kw{for} $j = 1$ \kw{to} $n$ \kw{do} \\
+& 3. \quad Initialize $L'_j \gets \langle\,\rangle$; scan $(w, p) \in L_{j-1}$ in order: \kw{if} $w + w_j > c$ \kw{then break}; append $(w + w_j, p + p_j)$ to $L'_j$. \\
+& 4. \quad $(L_j, P^*) \gets \id{Mergelist\_with\_bound}(L_{j-1}, L'_j, n - j, c, w_{j+1..n}, p_{j+1..n}, P^*)$. \\
+& 5. \kw{return} $P^*$. \\[0.3em]
+\textbf{Merge-Bound:} &
+1. Initialize empty result list $M \gets \langle\,\rangle$. \\
+& 2. \kw{while} $L$ or $L'$ still contains unprocessed states \kw{do} \\
+& 3. \quad Extract the unprocessed state $(\bar{w}, \bar{p})$ with the smallest weight across $L$ and $L'$. \\
+& 4. \quad $U \gets \bar{p} + \id{fraction\_knapsack}(n - j, c - \bar{w}, w_{j+1..n}, p_{j+1..n})$. \\
+& 5. \quad \kw{if} $U \le P^*$ \kw{then continue} \hfill $\triangleright$ Upper-bound pruning \\
+& 6. \quad $P^* \gets \max(P^*, \bar{p})$ \hfill $\triangleright$ Taking no remaining items is feasible \\
+& 7. \quad \kw{if} $M$ is empty \kw{then} append $(\bar{w}, \bar{p})$ to $M$. \\
+& 8. \quad \kw{else} let $(w'', p'')$ be the tail of $M$: \kw{if} $\bar{p} > p''$ \kw{then} replace $(w'', p'')$ with $(\bar{w}, \bar{p})$ when $\bar{w} = w''$, else append $(\bar{w}, \bar{p})$ to $M$. \\
+& 9. \kw{return} $(M, P^*)$. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+
+% ============================================================
+%  CHAPTER 3: TESTING RESULTS
+% ============================================================
+\section{Testing Results}
+
+\subsection{Dataset Sources and Isolated Benchmark Protocol}
+To evaluate our three solvers across different regimes of capacity $c$ and item count $n$, we combine a public benchmark library with a deterministic synthetic generator:
+\begin{itemize}
+  \item \textbf{Large-Capacity KPLIB Uncorrelated Suite:} Obtained from the KPLIB repository~\cite{kplib_repo} at \url{https://github.com/likr/kplib} under \code{kplib/00Uncorrelated/nxxxxx/R10000/}. For each scale $n \in \{50, 100, 200, 500, 1000\}$, all $100$ files \code{s000.kp}--\code{s099.kp} totaling $500$ instances sample weights and profits independently from $[1, 10{,}000]$ with capacity $c \approx 0.5\sum_{j=1}^n w_j$, spanning $c \in [101{,}346, 2{,}610{,}543]$.
+  \item \textbf{Fixed-Small-Capacity Synthetic Suite:} Generated reproducibly by \code{src/knapsack\_generator.py} with $R = 1{,}000$, fixed capacity $c = 1{,}000$, and seed $42$, giving $951$ uncorrelated instances as $n$ increases from $50$ to $1{,}000$ in steps of $1$.
+  \item \textbf{Job-Object-Isolated Timing Harness (\code{src/testbench.c}):} Compiled on Windows with MinGW-w64 \texttt{gcc -std=c11 -O2 -Wall -Wextra}. Each run executes inside a dedicated worker process under a Windows Job Object with a $60\,\text{s}$ timeout and a $1\,\text{GiB}$ memory cap. Inside the worker, \code{QueryPerformanceCounter} times only the solver function call, excluding directory scans, file parsing, and process startup.
+\end{itemize}
+
+\subsection{Test Suite and Functional Verification}
+Whenever at least two solvers return \code{status = ok} on an instance, \code{testbench.c} compares their returned optimal values and records \code{agreement = match} or \code{mismatch}. Across all $4{,}353$ solver runs---$1{,}500$ on KPLIB and $2{,}853$ at fixed $c = 1{,}000$---\textbf{zero \code{mismatch} rows occur}. \Cref{tab:testcases} summarizes all test cases.
+
+\vspace{-0.2em}
+\begin{table}[H]
+\centering
+\caption{Summary of functional correctness, resource-limit, and large-scale benchmark test cases.}
+\label{tab:testcases}
+\renewcommand{\arraystretch}{1.05}
+\setlength{\tabcolsep}{3.2pt}
+\footnotesize
+\begin{tabular}{@{}c
+  >{\raggedright\arraybackslash}p{0.20\linewidth}
+  >{\raggedright\arraybackslash}p{0.25\linewidth}
+  >{\raggedright\arraybackslash}p{0.33\linewidth}
+  c@{}}
+\toprule
+\textbf{\color{primary}ID} & \textbf{\color{primary}Test Purpose} & \textbf{\color{primary}Expected Result} & \textbf{\color{primary}Actual Behavior \& Root-Cause Notes} & \textbf{\color{primary}Status} \\
+\midrule
+TC-1 & Toy sanity check in \code{testbench\_demo.c} ($n\!=\!5, c\!=\!15$) & Exact optimal value $z^*\!=\!18$ across all 3 solvers & \code{origin}, \code{list}, and \code{bound} all output $18$ (subset $\{1,2,3,4\}$) & Pass \\
+TC-2 & Input parser \& 32-bit overflow guards in \code{read\_instance} & Reject negative $p_i$, $w_i \le 0$, or $\sum p_i > \code{INT\_MAX}$ cleanly & Malformed / oversized inputs return status tags without crashing batch controller & Pass \\
+TC-3 & KPLIB $R\!=\!10{,}000$ at $n \in \{50, 100, 200\}$ ($300$ instances) & All $900$ runs succeed with identical optimal profits & $900/900$ runs \code{ok}; $100\%$ \code{match}; \code{list}/\code{bound} run $14.2\times$--$56.1\times$ faster than \code{origin} & Pass \\
+TC-4 & KPLIB $R\!=\!10{,}000$ at $n\!=\!500$ ($c \in [1.16, 1.31]\!\times\!10^6$) & \code{origin} hits $1\,\text{GiB}$ Job cap; \code{list} \& \code{bound} agree & \code{origin}: $100/100$ \code{worker\_failed} (\code{0xC0000005} OOM at $\approx 2.31\,\text{GiB}$ table); \code{list} \& \code{bound}: $100/100$ \code{ok}, $100\%$ \code{match} & Pass \\
+TC-5 & KPLIB $R\!=\!10{,}000$ at $n\!=\!1000$ ($c \in [2.36, 2.61]\!\times\!10^6$) & \code{origin} OOM; \code{list} \& \code{bound} match on completed runs & \code{origin}: $100/100$ OOM ($\approx 9.22\,\text{GiB}$); \code{bound}: $100/100$ \code{ok}; \code{list}: $99/100$ \code{ok} (\code{s061.kp} hits $1\,\text{GiB}$ retaining unfreed $L_{0..n}$); $99/99$ \code{match} & Pass \\
+TC-6 & Synthetic suite ($c\!=\!1{,}000, R\!=\!1{,}000, n \in [50, 1000]$) & All $2{,}853$ runs complete and agree on exact $z^*$ & $2{,}853/2{,}853$ runs \code{ok}; $100\%$ \code{match} across all $951$ scales; mean runtime $< 1.35\,\text{ms}$ & Pass \\
+\bottomrule
+\end{tabular}
+\end{table}
+\vspace{-0.3em}
+
+In TC-4 and TC-5, every \code{worker\_failed} record has Windows exit code \code{3221225477}, i.e., \code{0xC0000005}: when \code{malloc} returns \code{NULL} under the $1\,\text{GiB}$ Job Object limit, writing into the unallocated buffer faults inside the sandboxed worker while the controller logs the failure and continues. On \code{n01000/R10000/s061.kp} with $c = 2{,}430{,}951$, keeping all intermediate lists $L_0, \ldots, L_{1000}$ allocated pushes \code{knapsack\_list} slightly past $1\,\text{GiB}$, whereas \code{knapsack\_list\_with\_bound} completes all $100/100$ instances because upper-bound pruning shrinks the intermediate lists.
+
+\subsection{Performance Benchmark Tables}
+\Cref{tab:r10000} reports the runtime distribution across the $500$ large-capacity KPLIB instances with $R = 10{,}000$, and \Cref{tab:c1000} summarizes runtimes across five item-count intervals and all $951$ instances at fixed capacity $c = 1{,}000$.
+
+\vspace{-0.2em}
+\begin{table}[H]
+\centering
+\caption{Runtime statistics (in milliseconds) on KPLIB \code{00Uncorrelated} ($R = 10{,}000$, $100$ instances per $n$).}
+\label{tab:r10000}
+\renewcommand{\arraystretch}{0.95}
+\setlength{\tabcolsep}{3.7pt}
+\footnotesize
+\begin{tabular}{@{}rrlrrrrrrrrr@{}}
+\toprule
+\textbf{\color{primary}$n$} & \textbf{\color{primary}Median $c$} & \textbf{\color{primary}Solver} & \textbf{\color{primary}OK} & \textbf{\color{primary}Min} & \textbf{\color{primary}25th} & \textbf{\color{primary}Median} & \textbf{\color{primary}Mean} & \textbf{\color{primary}SD} & \textbf{\color{primary}95th} & \textbf{\color{primary}Max} & \textbf{\color{primary}vs.\ DP-1} \\
+\midrule
+\multirow{3}{*}{$50$} & \multirow{3}{*}{$123{,}300$}
+  & \code{origin} & $100$ &   4.728 &   5.989 &   6.509 &   6.645 &  1.001 &   8.352 &  11.347 & $1.00\times$ \\
+& & \code{list}   & $100$ &   0.121 &   0.153 &   0.170 &   0.189 &  0.062 &   0.307 &   0.472 & $\mathbf{35.25\times}$ \\
+& & \code{bound}  & $100$ &   0.081 &   0.095 &   0.109 &   0.119 &  0.038 &   0.173 &   0.310 & $\mathbf{56.08\times}$ \\
+\midrule
+\multirow{3}{*}{$100$} & \multirow{3}{*}{$244{,}089$}
+  & \code{origin} & $100$ &  21.954 &  24.091 &  24.773 &  25.728 &  4.251 &  28.843 &  61.875 & $1.00\times$ \\
+& & \code{list}   & $100$ &   0.646 &   0.812 &   0.895 &   0.928 &  0.166 &   1.248 &   1.440 & $\mathbf{27.73\times}$ \\
+& & \code{bound}  & $100$ &   0.468 &   0.600 &   0.675 &   0.741 &  0.222 &   1.042 &   1.836 & $\mathbf{34.72\times}$ \\
+\midrule
+\multirow{3}{*}{$200$} & \multirow{3}{*}{$496{,}705$}
+  & \code{origin} & $100$ &  76.655 &  83.936 &  88.322 &  90.163 &  9.643 & 101.816 & 137.594 & $1.00\times$ \\
+& & \code{list}   & $100$ &   3.500 &   4.582 &   4.908 &   4.980 &  0.627 &   5.980 &   6.738 & $\mathbf{18.10\times}$ \\
+& & \code{bound}  & $100$ &   4.563 &   5.595 &   6.162 &   6.363 &  1.090 &   8.611 &  10.704 & $\mathbf{14.17\times}$ \\
+\midrule
+\multirow{3}{*}{$500$} & \multirow{3}{*}{$1{,}240{,}985$}
+  & \code{origin} &   $0$ & \multicolumn{8}{c}{\color{textmuted}\itshape Exceeded $1\,\text{GiB}$ Job Object memory limit ($\approx 2.31\,\text{GiB}$ required)} \\
+& & \code{list}   & $100$ &  49.858 &  54.600 &  58.488 &  59.376 &  6.352 &  70.290 &  84.576 & --- \\
+& & \code{bound}  & $100$ & 146.793 & 172.387 & 182.448 & 188.115 & 23.006 & 226.008 & 264.129 & --- \\
+\midrule
+\multirow{3}{*}{$1000$} & \multirow{3}{*}{$2{,}476{,}046$}
+  & \code{origin} &   $0$ & \multicolumn{8}{c}{\color{textmuted}\itshape Exceeded $1\,\text{GiB}$ Job Object memory limit ($\approx 9.22\,\text{GiB}$ required)} \\
+& & \code{list}   &  $99$ & 326.696 & 366.598 & 382.887 & 387.409 & 35.162 & 434.148 & 546.780 & --- \\
+& & \code{bound}  & $100$ & $1{,}955.74$ & $2{,}296.74$ & $2{,}416.38$ & $2{,}449.23$ & 226.083 & $2{,}737.69$ & $3{,}583.55$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+\vspace{-0.3em}
+
+\vspace{-0.2em}
+\begin{table}[H]
+\centering
+\caption{Runtime comparison (in ms) across item-count intervals at fixed $c = 1{,}000$ ($R = 1{,}000$, $951$ instances).}
+\label{tab:c1000}
+\renewcommand{\arraystretch}{0.95}
+\setlength{\tabcolsep}{3.2pt}
+\footnotesize
+\begin{tabular}{@{}lcrrrrrrl@{}}
+\toprule
+\textbf{\color{primary}Scale $n$} & \textbf{\color{primary}Cnt} & \textbf{\color{primary}DP-1 Avg} & \textbf{\color{primary}DP-1 Med} & \textbf{\color{primary}List Avg} & \textbf{\color{primary}List Med} & \textbf{\color{primary}Bnd Avg} & \textbf{\color{primary}Bnd Med} & \textbf{\color{primary}Fastest} \\
+\midrule
+$[50, 199]$   & $150$ & 0.213 & 0.221 & 0.132 & 0.134 & \textbf{0.067} & \textbf{0.064} & \code{bound} ($3.18\times$) \\
+$[200, 399]$  & $200$ & 0.486 & 0.493 & 0.477 & 0.440 & \textbf{0.236} & \textbf{0.202} & \code{bound} ($2.06\times$) \\
+$[400, 599]$  & $200$ & 0.798 & 0.745 & 1.123 & 1.095 & \textbf{0.595} & \textbf{0.585} & \code{bound} ($1.34\times$) \\
+$[600, 799]$  & $200$ & \textbf{1.069} & \textbf{1.044} & 1.871 & 1.848 & 1.093 & 1.073 & \code{origin} ($\approx$ tied) \\
+$[800, 1000]$ & $201$ & \textbf{1.396} & \textbf{1.388} & 2.761 & 2.721 & 1.736 & 1.718 & \code{origin} ($1.24\times$) \\
+\midrule
+\textbf{$[50, 1000]$} & $\mathbf{951}$ & \textbf{0.824} & \textbf{0.801} & \textbf{1.334} & \textbf{1.169} & \textbf{0.782} & \textbf{0.638} & \code{bound} ($640/951$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+\vspace{-0.3em}
+
+\subsection{Runtime Scaling and Distribution Plots}
+\Cref{fig:r10k_overview,fig:r10k_cap,fig:c1000_n} visualize the qualitative scaling trends and solver rankings from \code{src/visualization.py}. \Cref{fig:r10k_overview} plots the aggregate log-log scaling curves and speedup ratios on the large-capacity KPLIB suite, illustrating both the substantial gap below \code{origin} and the crossover where \code{list} overtakes \code{bound} as $n$ increases. \Cref{fig:r10k_cap} unpacks \Cref{fig:r10k_overview} into per-scale scatter panels across $n \in \{50, 100, 200, 500\}$, visually showing this step-by-step rank reversal while confirming that minor capacity variations within a fixed $n$ barely affect the two list-based solvers compared with the wider scatter of \code{origin}. Finally, \Cref{fig:c1000_n} presents the runtime trajectories and boxplots when capacity is held constant at $c = 1{,}000$: here \code{origin} grows linearly with $n$, \code{bound} maintains the lowest runtime over small-to-moderate $n$ before crossing \code{origin}, and \code{list} becomes the slowest and most dispersed curve.
+
+\vspace{-0.2em}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{scaling_r10000_overview.pdf}
+\caption{\footnotesize Aggregate runtime scaling and speedup/crossover ratios on KPLIB \code{00Uncorrelated} ($R = 10{,}000$).}
+\label{fig:r10k_overview}
+\end{figure}
+
+\vspace{-0.2em}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{runtime_vs_capacity_r10000.pdf}
+\caption{\footnotesize Per-scale instance distributions for $n \in \{50, 100, 200, 500\}$ unpacking \Cref{fig:r10k_overview} on KPLIB ($R = 10{,}000$).}
+\label{fig:r10k_cap}
+\end{figure}
+
+\vspace{-0.2em}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{runtime_vs_n_fixed_c1000.pdf}
+\caption{\footnotesize Runtime trajectory and boxplot distribution across $n \in [50, 1000]$ at fixed $c = 1{,}000$.}
+\label{fig:c1000_n}
+\end{figure}
+
+\clearpage
+
+% ============================================================
+%  CHAPTER 4: ANALYSIS AND COMMENTS
+% ============================================================
+\section{Analysis and Comments}
+
+\subsection{Time and Space Complexity Analysis}
+Let $B = \max_{0 \le j \le n} |L_j| \le c + 1$ denote the maximum number of undominated states in any stage of \code{list}, and let $B_{\text{ub}} = \max_{0 \le j \le n} |L_j^{\text{ub}}| \le B$ denote the corresponding peak list length retained after upper-bound pruning in \code{bound}. \Cref{tab:complexities} summarizes both the asymptotic bounds of our C11 implementations and the space-optimized rolling-buffer bounds achievable without storing historical stages.
+
+\begin{table}[H]
+\centering
+\caption{Theoretical best-case, parameterized, and worst-case time and space complexities of the three 0/1 knapsack solvers.}
+\label{tab:complexities}
+\setlength{\tabcolsep}{2.9pt}
+\footnotesize
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{\color{primary}Algorithm} & \textbf{\color{primary}Best Time} & \textbf{\color{primary}Param.\ Time} & \textbf{\color{primary}Worst Time} & \textbf{\color{primary}C Impl.\ Space} & \textbf{\color{primary}Rolling Space} \\
+\midrule
+\textbf{DP-1} (\code{origin}) & $\Theta(nc)$ & $\Theta(nc)$ & $\Theta(nc)$ & $\Theta(nc)$ & $\Theta(c)$ \\
+\textbf{DP-Lists} (\code{list}) & $\Theta(n)$ & $O(nB)$ & $O(nc)$ & $O(nB + c)$ & $O(B)$ \\
+\textbf{DP-Bounds} (\code{bound}) & $\Theta(n^2)$ & $O(n^2 + n^2 B_{\text{ub}})$ & $O(n^2 c)$ & $O(n B_{\text{ub}} + c + n)$ & $O(B_{\text{ub}} + n)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{lemmabx}{Lemma 1 (Total Ordering and $O(nB)$ Bound of \textsf{DP-with-Lists} \cite{kellerer2004knapsack})}
+Every undominated state list $L_j$ produced by \id{Mergelist} satisfies $0 \le w_{1j} < \cdots < w_{m_j,j} \le c$ and $0 \le p_{1j} < \cdots < p_{m_j,j}$, with $m_j = |L_j| \le \min(2^j, c+1)$. If $m_j \le B$ for all $j$, \code{knapsack\_list} runs in $O(nB)$ time and achieves $\Theta(n)$ best-case time.
+\end{lemmabx}
+
+\begin{proof}
+Suppose two retained states $(w_a, p_a)$ and $(w_b, p_b)$ appear in $L_j$ with $a < b$. Because \id{Mergelist} pops candidates in non-decreasing weight order and replaces the tail whenever an equal weight improves profit, $w_a < w_b$ holds strictly. Meanwhile, Step~4 admits $(w_b, p_b)$ only when $p_b > p_a$, proving strict monotonicity in both coordinates and bounding $m_j \le c + 1$ since distinct integers in $[0, c]$ number at most $c + 1$.
+
+At stage $j$, forming $L'_j$ scans at most $m_{j-1}$ states in $O(B)$ time, and \id{Mergelist} advances either cursor $i_1$ or $i_2$ at every iteration in $O(1)$ time, taking $O(|L_{j-1}| + |L'_j|) = O(B)$ time. Summing over $j = 1, \ldots, n$ yields $O(nB) \subseteq O(nc)$ time. In the best case---for example when $w_j = c$ for every item---each shifted state $(c + w_j, p + p_j)$ exceeds $c$ except $(c, p_j)$, so $|L_j| \le 2$ for all $j$ and total runtime drops to $\Theta(n)$.
+\end{proof}
+
+\begin{theorembx}{Theorem 1 (Exactness and Complexity of \textsf{DP-with-Upper-Bounds} \cite{kellerer2004knapsack})}
+With items sorted so $p_1/w_1 \ge \cdots \ge p_n/w_n$, the floored fractional-knapsack bound $U_j(w, p)$ in (\ref{eq:ub}) satisfies $z^* \ge P^*$ and $U_j(w, p) \ge p + \max\{\sum_{\ell=j+1}^n p_\ell x_\ell \mid \sum_{\ell=j+1}^n w_\ell x_\ell \le c - w,\; x_\ell \in \{0,1\}\}$. Hence fathoming states with $U_j(w, p) \le P^*$ preserves exactness of $z^*$, and \code{knapsack\_list\_with\_bound} runs in $O(n^2 + n^2 B_{\text{ub}}) \subseteq O(n^2 c)$ worst-case time.
+\end{theorembx}
+
+\begin{proof}
+Because items are sorted in non-increasing order of $p_\ell / w_\ell$, greedy fractional packing solves the continuous relaxation $x_\ell \in [0,1]$ over residual capacity $c - w$ optimally. Relaxing $x_\ell \in \{0,1\}$ to $[0,1]$ cannot decrease the objective, and since all $p_\ell \in \mathbb{Z}_{\ge 0}$, any feasible integer completion has an integer profit at most $\lfloor U_j^{\text{LP}}(w, p) \rfloor = U_j(w, p)$. Whenever $U_j(w, p) \le P^*$, no binary extension of $(w, p)$ can strictly beat the already realized integer profit $P^*$, so discarding $(w, p)$ never eliminates all optimal solutions; if the optimal solution itself was already recorded in $P^*$, returning $P^*$ at termination remains exact.
+
+For time complexity, \code{selection\_sort} takes $\Theta(n^2)$ preprocessing time. At stage $j$, the bounded merge step pops at most $2|L_{j-1}^{\text{ub}}| \le 2B_{\text{ub}}$ states, invoking \code{fraction\_knapsack} in $O(n - j)$ time per popped state. Summing over $j = 1, \ldots, n$ gives
+\[
+  T_{\text{bound}}(n, c) \;=\; \Theta(n^2) + \sum_{j=1}^{n} O\bigl((n - j + 1)\,|L_{j-1}^{\text{ub}}|\bigr) \;=\; O(n^2 + n^2 B_{\text{ub}}) \;\subseteq\; O(n^2 c).
+\]
+In the best case where the greedy prefix immediately fills capacity $c$ and prunes all suboptimal branches so $B_{\text{ub}} = O(1)$, total time drops to $\Theta(n^2)$ due to selection sort.
+\end{proof}
+
+\paragraph{Byte-Level Space Accounting and the $1\,\text{GiB}$ Memory Wall.}
+In \code{Knapsack\_origin.h}, the table \code{best\_solution} allocates $(n+1)$ 8-byte pointers plus $(n+1)(c+1)$ 4-byte integers:
+\begin{itemize}
+  \item At $n = 200$, median $c = 496{,}705$: $201 \times 496{,}706 \times 4 \approx \mathbf{380.8\,\text{MiB}}$, fitting inside the $1{,}024\,\text{MiB}$ Job Object limit.
+  \item At $n = 500$, median $c = 1{,}240{,}985$: $501 \times 1{,}240{,}986 \times 4 \approx \mathbf{2.31\,\text{GiB}} > 1\,\text{GiB}$, explaining why all $100$ \code{origin} runs fail in TC-4; at $n = 1{,}000$ and $c \approx 2.48\times 10^6$, the table requires $\approx \mathbf{9.22\,\text{GiB}}$.
+\end{itemize}
+By contrast, each \code{State} struct occupies $8$ bytes. Although \code{list} and \code{bound} keep $L_0, \ldots, L_n$ allocated until the loop finishes and pre-allocate $8(c+1)$ bytes for $L_0$, dominance pruning keeps $|L_j| \ll c$, allowing $99/100$ runs of \code{list} and $100/100$ runs of \code{bound} to finish at $n = 1{,}000$ within $1\,\text{GiB}$.
+
+\subsection{Empirical Performance Insights Across Regimes}
+Three key findings explain the empirical speedups and regime crossovers observed in Chapter~3.
+
+\vspace{-0.3em}
+\begin{insightbox}{Key Finding 1: Undominated State Pruning Yields $14\times\text{--}56\times$ Speedups on Large Capacities}
+When item weights are drawn uniformly from $[1, 10{,}000]$ at $n \in \{50, 100, 200\}$, capacity $c \approx 2{,}500n$ reaches $1.2 \times 10^5$ to $5.0 \times 10^5$, forcing \textbf{DP-1} to fill $6.2 \times 10^6$ to $1.0 \times 10^8$ table cells. In early and middle stages, reachable weight sums remain sparse and high-density items dominate nearby weight combinations. Because $B \ll c$, \code{list} reduces mean runtime from $90.16\,\text{ms}$ to $4.98\,\text{ms}$ ($\mathbf{18.10\times}$) at $n=200$, and \code{bound} reduces mean runtime from $6.65\,\text{ms}$ to $0.12\,\text{ms}$ ($\mathbf{56.08\times}$) at $n=50$. At $n=1{,}000$, \code{list} and \code{bound} take $0.39\,\text{s}$ and $2.45\,\text{s}$ on average, whereas dense-table DP exceeds $1\,\text{GiB}$ of RAM.
+\end{insightbox}
+\vspace{-0.35em}
+
+\begin{insightbox}{Key Finding 2: Per-State $O(n)$ Bounding Causes the $n \approx 150$ Crossover on Large $R$}
+Comparing \code{list} and \code{bound} on KPLIB in \Cref{tab:r10000,fig:r10k_overview} shows a clear trade-off between state reduction and per-state bounding cost:
+\begin{itemize}
+  \item \textbf{Small $n \le 100$:} Each \code{fraction\_knapsack} call scans fewer than $100$ contiguous integers in L1 cache while pruning over half of the candidate states, raising the speedup over \textbf{DP-1} from $35.25\times$ to $56.08\times$ at $n=50$.
+  \item \textbf{Large $n \in \{500, 1000\}$:} Once high-ratio items are packed, thousands of states still satisfy $U_j(w,p) > P^*$. Running an $O(n - j)$ scan on every merged state pushes \code{bound} toward its $O(n^2 B_{\text{ub}})$ bound, raising median runtime at $n=1{,}000$ from $382.89\,\text{ms}$ for \code{list} to $2{,}416.38\,\text{ms}$ for \code{bound}, while \code{bound}'s smaller lists avoid the single OOM on \code{s061.kp}.
+\end{itemize}
+\end{insightbox}
+\vspace{-0.35em}
+
+\begin{insightbox}{Key Finding 3: Cache-Friendly Dense Arrays Beat Unbounded Lists When Capacity $c$ Is Small}
+At fixed $c = 1{,}000$ and $n \in [50, 1000]$ in \Cref{tab:c1000,fig:c1000_n}, $B$ quickly approaches $c = 1{,}000$. Without upper-bound pruning, \code{list} loses its sparsity advantage: per-stage \code{malloc}/\code{free} calls, merge branches in \code{Mergelist}, and 8-byte struct copies make \code{list} nearly $2\times$ slower than \code{origin}'s sequential \code{int} loop for $n \in [800, 1000]$ ($2.76\,\text{ms}$ vs.\ $1.40\,\text{ms}$). Upper-bound pruning in \code{bound} keeps lists short for $n < 600$ and wins $640/951$ instances overall, whereas \code{selection\_sort} and $O(n-j)$ bounding let \code{origin} take the lead for $n \ge 650$.
+\end{insightbox}
+\vspace{-0.35em}
+
+\subsection{Further Possible Improvements}
+\vspace{-0.15em}
+Based on our analysis and profiling, three improvements are planned for future work:
+\begin{enumerate}[label=\textbf{\color{primary}\arabic*.}]
+  \item \textbf{Rolling Array / Two-List Allocation:} Stage $j$ depends only on stage $j - 1$. Freeing $L_{j-1}$ right after building $L_j$, and replacing \code{best\_solution[n+1][c+1]} in \textbf{DP-1} with a single 1D array \code{dp[0..c]}, reduces space from $\Theta(nc)$ and $O(nB)$ to $\Theta(c)$ and $O(B)$, removing all $1\,\text{GiB}$ OOM failures at $n = 500$ and $1{,}000$.
+  \item \textbf{Replacing Selection Sort with \code{qsort} and Pre-Sizing $L_0$:} Replacing $\Theta(n^2)$ \code{selection\_sort} with $\Theta(n \log n)$ \code{qsort} and starting $L_0$ with a small initial capacity instead of $c + 1$ avoids unnecessary upfront overhead at large $n$ and $c$.
+  \item \textbf{Implementing the $O(n + w^3)$ Bonus Solver:} For instances where the maximum item weight $w = \max_{1 \le j \le n} w_j$ is small relative to $n$ and $c$, the knapsack problem can be solved in $O(n + w^3)$ time independent of capacity $c$. We plan to add this bonus solver and include its empirical comparison in the next version of our project.
+\end{enumerate}
+
+\clearpage
+
+% ============================================================
+%  AUTHOR LIST, DECLARATION, AND REFERENCES
+% ============================================================
+\section*{Author List and Declaration}
+\addcontentsline{toc}{section}{Author List and Declaration}
+
+\subsection*{Author List}
+\ifpeerreview
+\begin{itemize}
+  \item \textbf{\color{primary}Student A:} Implemented the three knapsack dynamic programming solvers (\code{Knapsack\_origin.h}, \code{Knapsack\_List.h}, \code{Knapsack\_List\_with\_bound.h}, \code{Fraction\_Knapsack.h}), the Windows Job Object benchmark harness (\code{testbench.c}), and the synthetic instance generator (\code{knapsack\_generator.py}).
+  \item \textbf{\color{primary}Student B:} Executed and verified the KPLIB and fixed-capacity benchmark suites, designed the comparative visualization scripts (\code{plot\_benchmark.py}, \code{visualization.py}), conducted the theoretical complexity and crossover analysis, and authored this report.
+\end{itemize}
+\else
+\begin{itemize}
+  \item \textbf{\color{primary}Yixiang Chen:} Implemented the three knapsack dynamic programming solvers (\code{Knapsack\_origin.h}, \code{Knapsack\_List.h}, \code{Knapsack\_List\_with\_bound.h}, \code{Fraction\_Knapsack.h}), the Windows Job Object benchmark harness (\code{testbench.c}), and the synthetic instance generator (\code{knapsack\_generator.py}).
+  \item \textbf{\color{primary}Runhui Lin:} Executed and verified the KPLIB and fixed-capacity benchmark suites, designed the comparative visualization scripts (\code{plot\_benchmark.py}, \code{visualization.py}), conducted the theoretical complexity and crossover analysis, and authored this report.
+\end{itemize}
+\fi
+
+\subsection*{Declaration}
+We hereby declare that all the work done in this project titled ``Improving Dynamic Programming for the 0/1 Knapsack Problem'' is of our independent effort as a group.
+
+\subsection*{Signatures}
+\vspace{0.35cm}
+\noindent
+\ifpeerreview
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\vspace{1.15cm}
+\rule{0.92\linewidth}{0.4pt}\\[0.15cm]
+Student A
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\vspace{1.15cm}
+\rule{0.92\linewidth}{0.4pt}\\[0.15cm]
+Student B
+\end{minipage}
+\else
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\includegraphics[height=1.35cm,keepaspectratio]{signature_chen.png}\\[-0.1cm]
+\rule{0.92\linewidth}{0.4pt}\\[0.15cm]
+Yixiang Chen
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\includegraphics[height=1.55cm,keepaspectratio]{signature_lin.png}\\[-0.1cm]
+\rule{0.92\linewidth}{0.4pt}\\[0.15cm]
+Runhui Lin
+\end{minipage}
+\fi
+
+\vspace{0.6cm}
+\printbibliography[heading=bibintoc]
+
+\clearpage
+
+% ============================================================
+%  APPENDIX
+% ============================================================
+\appendix
+\titleformat{\section}
+  {\color{primary}\centering\Large\bfseries}
+  {\color{accent}Appendix~\thesection.}{0.6em}{}
+  [\vspace{0.3em}{\color{accent!70}\titlerule[1.5pt]}]
+
+\section{Source Code}
+
+All complete source files are located in \code{project4/src/}, with over $30\%$ commented lines in every C11 source and header file. Below we include the baseline dense-table DP header, the dominance-pruned state-list DP header, the fractional-knapsack LP upper-bound helper, the hybrid bound-pruned list DP header, the toy sanity-check driver, the Windows Job Object batch benchmark harness, the synthetic instance generator, and the visualization script.
+
+\subsection{Baseline Dense-Table DP (\texttt{Knapsack\_origin.h})}
+\lstinputlisting[language=C]{../src/Knapsack_origin.h}
+
+\subsection{DP-with-Lists and Dominance Pruning (\texttt{Knapsack\_List.h})}
+\lstinputlisting[language=C]{../src/Knapsack_List.h}
+
+\subsection{Fractional Knapsack Upper-Bound Helper (\texttt{Fraction\_Knapsack.h})}
+\lstinputlisting[language=C]{../src/Fraction_Knapsack.h}
+
+\subsection{DP-with-Upper-Bounds (\texttt{Knapsack\_List\_with\_bound.h})}
+\lstinputlisting[language=C]{../src/Knapsack_List_with_bound.h}
+
+\subsection{Sanity-Check Demo Driver (\texttt{testbench\_demo.c})}
+\lstinputlisting[language=C]{../src/testbench_demo.c}
+
+\subsection{Job-Object Batch Benchmark Harness (\texttt{testbench.c})}
+\lstinputlisting[language=C]{../src/testbench.c}
+
+\subsection{Reproducible Knapsack Instance Generator (\texttt{knapsack\_generator.py})}
+\lstinputlisting[language=Python]{../src/knapsack_generator.py}
+
+\subsection{Benchmark Visualization Script (\texttt{visualization.py})}
+\lstinputlisting[language=Python]{../src/visualization.py}
+
+\end{document}
