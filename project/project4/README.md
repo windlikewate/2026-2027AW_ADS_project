@@ -184,6 +184,8 @@ project4/
 │   ├── Knapsack_origin.h             # 标准动态规划背包算法
 │   ├── Knapsack_List.h               # 状态列表动态规划与主导性剪枝
 │   ├── Knapsack_List_with_bound.h    # 结合分数背包上界的列表动态规划
+│   ├── Knapsack_w3.h                 # O(n+W^3)：前缀邻近性与 SMAWK 凹卷积
+│   ├── test_w3.c                     # 随机 DP、穷举与卷积正确性对拍
 │   ├── Fraction_Knapsack.h           # 分数背包上界计算与排序工具
 │   ├── testbench_demo.c              # 小规模样例测试
 │   ├── testbench.c                   # kplib 批量测试程序，可选择算法并输出 CSV
@@ -231,3 +233,24 @@ project4/
 实验流程为：使用 `src/testbench.c` 读取 `kplib/` 中的数据，将测试结果保存到
 `data/`，再使用 `src/plot_benchmark.py` 将耗时图和聚合数据保存到 `plots/`。
 `src/__pycache__/` 是 Python 自动生成的缓存，不属于算法源码。
+
+
+## Bonus 算法实现
+
+已新增 `src/Knapsack_w3.h`，依据 ADS 笔记附录和论文
+*Knapsack and Subset Sum with Small Items* 实现确定性 O(n+W³) 精确算法，
+其中 W 为最大物品重量。采用 BFPRT 线性时间构造密度前缀、2W 邻近性界、
+按重量分组的凹卷积及 SMAWK，额外空间 O(n+W²)。实现包含关键步骤注释。
+
+benchmark 新增 `--algorithm w3`；`all` 运行四算法并比较答案，
+新增 `--max-weight` 规模限制。`plot_benchmark.py` 支持第四条曲线、
+`--mode w` 实际最大重量横轴及 `--max-weight` 筛选；报告绘图脚本
+`visualization.py` 同样识别新增算法，兼容历史三算法 CSV。
+
+编译、复现实验、算法步骤和正确性回归命令见 [源码使用说明](src/README.md)。
+建议从 W=8/16/32 的合成数据开始比较；大 W 时立方项开销很高。
+
+
+已补充可复现的 Bonus 优势区间实验：`python src/experiment_bonus.py`。
+图中同时比较固定小 W 时随 n 增长的加速效果，以及固定 n、c 时随 W 增长的耗时。
+参见 [实验报告](data/bonus_advantage_report.md) 和 [实验图像](plots/bonus_advantage.png)。

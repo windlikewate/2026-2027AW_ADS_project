@@ -1,6 +1,6 @@
 # kplib 性能测试程序
 
-源码为 `src/testbench.c`，直接调用现有三个算法，不修改算法实现。
+源码为 `src/testbench.c`，调用四个算法，包括新增的 `w3`（前缀解、邻近性与 SMAWK 凹卷积）。
 程序面向 Windows，使用 C11 与 Windows API，可用项目当前的 MinGW GCC 编译。
 保留 `src/testbench_demo.c` 作为原来的小样例测试。
 
@@ -21,7 +21,7 @@ $env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
 
 ## 使用方法
 
-测试某个 R 目录下的全部数据，并对比三个算法：
+测试某个 R 目录下的全部数据，并对比四个算法：
 
 ```powershell
 .\src\testbench.exe --algorithm all --root kplib\00Uncorrelated\n00050\R01000 --output benchmark.csv
@@ -45,7 +45,8 @@ $env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
 | `origin` | `knapsack_origin` |
 | `list` | `knapsack_list` |
 | `bound` | `knapsack_list_with_bound` |
-| `all` | 按上述顺序运行三个算法，并检查结果是否一致 |
+| `w3` | `knapsack_w3` |
+| `all` | 按上述顺序运行四个算法，并检查结果是否一致 |
 
 例如，仅测试前 10 个文件，每个算法独立运行 3 次：
 
@@ -67,7 +68,7 @@ $env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
 
 | 选项 | 默认值 | 含义 |
 | --- | --- | --- |
-| `--algorithm` | 必填 | `origin` / `list` / `bound` / `all` |
+| `--algorithm` | 必填 | `origin` / `list` / `bound` / `w3` / `all` |
 | `--root` | `kplib` | 相对于启动目录的数据目录，也支持绝对路径 |
 | `--output` | `benchmark.csv` | CSV 文件路径，父目录须已存在；已有文件会被覆盖 |
 | `--repeat` | `1` | 每个文件、每个算法的独立测试次数，每次一行 |
@@ -75,6 +76,7 @@ $env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
 | `--memory-mb` | `1024` | 单个工作进程的提交内存限制，单位 MiB；`0` 表示不限制 |
 | `--max-n` | 不限制 | 超过该物品数的文件记录为跳过 |
 | `--max-capacity` | 不限制 | 超过该容量的文件记录为跳过 |
+| `--max-weight` | 不限制 | 实际最大物品重量超过上限时记为 `skipped_weight`，对所有所选算法生效 |
 | `--limit` | 全部 | 按路径排序后选取的前 N 个文件，包含之后被跳过的文件 |
 | `--dry-run` | 关闭 | 仅读取、检查数据，不调用算法 |
 | `--help` | — | 显示命令帮助 |
@@ -115,7 +117,7 @@ $env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
 | `unsupported_input` | 数据超出当前 int 算法的支持范围，或重量非正、价值为负 |
 | `input_open_error` | 输入文件无法打开 |
 | `allocation_error` | 测试程序读取数据时分配内存失败 |
-| `skipped_n` / `skipped_capacity` | 超出指定规模上限 |
+| `skipped_n` / `skipped_capacity` / `skipped_weight` | 超出指定规模上限 |
 | `dry_run` | 数据有效，仅扫描未求解 |
 
 `agreement=match` 表示至少两个成功算法的结果一致，`mismatch` 表示有差异，
@@ -161,7 +163,7 @@ python src/plot_benchmark.py benchmark.csv --mode c --output plots/time_vs_c.png
 只画指定算法、实例类型与 R 范围，使用对数纵轴：
 
 ```powershell
-python src/plot_benchmark.py benchmark.csv --mode n --algorithms origin list bound --category 00Uncorrelated --r R01000 --log-y
+python src/plot_benchmark.py benchmark.csv --mode n --algorithms origin list bound w3 --category 00Uncorrelated --r R01000 --log-y
 ```
 
 按容量绘图时，可固定 n，减小其他规模因素的影响：
@@ -176,8 +178,8 @@ python src/plot_benchmark.py benchmark.csv --mode c --n 50 --category 00Uncorrel
 python src/plot_benchmark.py result1.csv result2.csv --mode n --aggregate median --exclude-mismatch --output plots/comparison.pdf
 ```
 
-参数：`--mode n|c` 必填；`--algorithms` 选择算法；`--n` 固定物品数量；
-`--capacity` 固定容量；`--category` 与 `--r` 按数据文件路径中的目录名筛选；
+参数：`--mode n|c|w` 必填；`--algorithms` 选择算法；`--n` 固定物品数量；
+`--capacity` 固定容量；`--max-weight` 按实际最大重量精确筛选；`--category` 与 `--r` 按数据文件路径中的目录名筛选；
 `--log-x` / `--log-y` 使用对数坐标；`--title` 自定义标题。
 默认输出为 `plots/time_vs_n.png` 或 `plots/time_vs_c.png`。
 
@@ -196,3 +198,118 @@ python src/plot_benchmark.py result1.csv result2.csv --mode n --aggregate median
 不会自动分箱；当各实例容量不同，每个点代表该容量的有效实例。
 曲线只是按横坐标连接观测值，不是拟合结果，也不表示复杂度证明。
 
+
+
+# Bonus：O(n + W^3) 精确算法
+
+实现文件为 `Knapsack_w3.h`，接口与原有算法一致：
+
+```c
+int knapsack_w3(int number, int capacity, int *profits, int *weights);
+```
+
+依据 ADS 笔记附录“进一步改进——O(n+W^3)”和本地论文
+`doc/n+w^3时间的背包问题.pdf`（Polak、Rohwedder、Węgrzycki，
+*Knapsack and Subset Sum with Small Items*，ICALP 2021）的 Lemma 2.1、
+Lemma 2.2 与 Theorem 1.1 实现，仅返回最优价值。代码各阶段均有注释。
+
+1. 先排除超出容量或价值为零的物品，使用 BFPRT（五元组中位数选择）按价值密度
+   寻找最大可行前缀，不对全部 n 个物品排序；密度用 64 位整数交叉相乘比较，
+   相同密度按原始下标打破平局。前缀在第一件放不下的物品处停止。
+2. 记前缀价值为 Vp、剩余容量为 delta。邻近性引理保证存在最优解与前缀最多相差
+   2W 件物品，所以删除总重量至多 L=2W²。分别计算删除 DP D[k]（删除价值取负）
+   和增加 DP A[t]，增加数组范围为 0..L+delta，delta<W。
+3. 按重量 h 分组，各组只保留最多 min(2W, floor(limit/h)) 个最佳物品，
+   再对保留部分排序。增加侧取价值最高的物品，删除侧取原价值最低的物品。
+   每组的价值前缀和为凹序列。按重量模 h 拆分转移，使用 SMAWK 求隐式
+   inverse-Monge 矩阵的行最大值，每个重量组共 O(W²) 时间。
+4. 对 A 取前缀最大值得到 A_le，返回
+   `Vp + max(D[k] + A_le[delta+k])`，其中 **0 <= k <= L**。
+   这里补齐笔记公式中的 k=0 和边界，覆盖只增加物品、不删除物品的最优修正。
+
+BFPRT 与分组共 O(n)，保留物品排序 O(W² log W)，两侧 DP 各 O(W³)，
+合并 O(W²)，所以总时间为 **O(n+W³)**、额外空间为 **O(n+W²)**。
+内部不分配容量 c 大小的表。这里 W 是预处理后剩余物品的最大重量，不大于输入的
+最大重量；CSV 的 `max_weight` 仍记录原始输入的实际最大重量。
+
+SMAWK 只保留可达旧状态列，并通过凹序列的带外延拓处理无效位置，
+避免把所有不可达项直接当作相同负无穷时破坏行最优位置的单调性。
+延拓比较采用“距离、价值”的字典序，不实际计算巨大惩罚，避免溢出。
+
+输入约定为重量正整数、价值非负整数、容量非负、总价值不超过 INT_MAX。
+函数不修改输入数组，空实例返回 0；非法输入、尺寸溢出或分配失败返回 -1 并设置 errno。
+benchmark 会将负返回值视为工作进程失败，不会记录成成功的最优值。
+
+## 小重量实验与绘图
+
+W=1000 或 10000 时，立方项可能很大，建议先使用小重量生成实例。
+下面在外层设置纯 `R<数字>` 目录，使现有扫描器可以识别生成器带参数后缀的内部目录：
+
+```powershell
+python src/knapsack_generator.py --n 50 100 200 500 1000 --range 16 --instances 10 --output generated_bonus/R00016
+.\src\testbench.exe --algorithm all --root generated_bonus --repeat 3 --output bonus.csv
+python src/plot_benchmark.py bonus.csv --mode n --algorithms origin list bound w3 --exclude-mismatch --output plots/bonus_vs_n.png
+```
+
+仅运行新算法，或限制输入最大重量：
+
+```powershell
+.\src\testbench.exe --algorithm w3 --root generated_bonus --max-weight 32 --output bonus_w3.csv
+```
+
+`--algorithm all` 现在按 origin、list、bound、w3 顺序运行四个算法，
+均保留进程隔离、超时、内存限制及同轮答案比较。历史 CSV 不会自动补出 w3 计时，
+需要重新运行或在绘图时同时传入新旧 CSV。
+
+新增 `--mode w` 按 CSV 的**实际最大重量**绘图，区别于生成范围参数 R。
+可先分别用 `--range 8/16/32` 生成数据并统一测试，再运行：
+
+```powershell
+python src/plot_benchmark.py bonus.csv --mode w --n 200 --exclude-mismatch --output plots/bonus_vs_w.png
+python src/plot_benchmark.py bonus.csv --mode n --max-weight 16 --output plots/bonus_fixed_w.png
+```
+
+n/c 模式仍可读取不含 `max_weight` 字段的旧 CSV；w 模式和重量筛选需要该字段。
+聚合、重复次数去重、失败记录排除与原先相同。
+
+报告绘图脚本 `visualization.py` 也支持 w3：读取既有 `all_n*_R10000.csv` 和
+`all_nvariable_C1000.csv` 中实际存在的 w3 记录，显示耗时、加速比与箱线图；
+只有旧三算法数据时继续绘制三算法。可通过以下参数选择数据与输出目录：
+
+```powershell
+python src/visualization.py --data-dir data --output-dir src/visualizations
+```
+
+## 正确性回归
+
+`test_w3.c` 使用固定种子，与独立的一维容量 DP、微型实例穷举以及朴素卷积对拍，
+包含稀疏不可达状态、负增益、相同密度、同重量、零价值、空实例、零容量、
+全可装入、大价值及输入数组不变性检查：
+
+```powershell
+gcc -std=c11 -O2 -Wall -Wextra -Werror src/test_w3.c -o src/test_w3.exe
+.\src\test_w3.exe
+```
+
+
+## 已运行的 Bonus 优势区间实验
+
+`experiment_bonus.py` 会生成两组共同随机数的受控实验，再调用现有四算法 benchmark：
+固定 W=16 扫描 n=50..3200，以及固定 n=500、c=1000 扫描 W=4..256。
+每组 3 个固定种子，每个算法默认重复 3 次，价值范围始终为 1..1000。
+不修改算法实现，保留所有输入、原始 CSV、四算法答案一致性检查与实例配对加速比。
+
+```powershell
+python src/experiment_bonus.py
+python src/experiment_bonus.py --plot-only
+```
+
+需要 matplotlib 和 numpy。脚本采用“实例内重复中位数，再取实例间中位数”聚合，
+图中阴影为实例间四分位范围，超时或答案不一致会使脚本停止并要求检查原始数据。
+
+- 图像：[bonus_advantage.png](../plots/bonus_advantage.png)，另存同名 PDF。
+- 实测结果与解释：[实验报告](../data/bonus_advantage_report.md)。
+- 原始计时：`data/bonus_advantage_n.csv` 和 `data/bonus_advantage_w.csv`。
+- 汇总：`plots/bonus_advantage_summary.csv` 和 `plots/bonus_advantage_speedups.csv`。
+
+小重量优势与大重量退化会同时展示；这是一组适用区间实验，并不保证 w3 对所有实例更快。

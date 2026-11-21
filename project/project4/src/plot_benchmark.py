@@ -1,4 +1,4 @@
-"""Plot testbench CSV results against item count n or knapsack capacity c.
+"""Plot testbench CSV results against item count n, capacity c, or maximum item weight W.
 
 Uses the standard csv module and matplotlib. Repeated trials are first
 averaged per dataset/algorithm; datasets with the same x then receive equal
@@ -21,11 +21,12 @@ import matplotlib.pyplot as plt
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("csv_files", nargs="+", type=Path, help="one or more testbench CSV files")
-    parser.add_argument("--mode", choices=("n", "c"), required=True, help="x axis: n or capacity")
+    parser.add_argument("--mode", choices=("n", "c", "w"), required=True, help="x axis: n, capacity, or actual maximum weight")
     parser.add_argument("--output", type=Path, help="PNG/PDF/SVG path; default plots/time_vs_MODE.png")
-    parser.add_argument("--algorithms", nargs="+", help="include only these algorithms, e.g. origin list bound")
+    parser.add_argument("--algorithms", nargs="+", help="include only these algorithms, e.g. origin list bound w3")
     parser.add_argument("--aggregate", choices=("mean", "median"), default="mean", help="aggregate datasets at equal x")
     parser.add_argument("--n", type=int, help="include only this item count (useful in c mode)")
+    parser.add_argument("--max-weight", type=int, help="include only this actual maximum weight")
     parser.add_argument("--capacity", type=int, help="include only this capacity")
     parser.add_argument("--category", help="kplib category, e.g. 00Uncorrelated")
     parser.add_argument("--r", help="kplib range directory, e.g. R01000")
@@ -42,6 +43,9 @@ def read_rows(args):
     skipped = Counter()
     seen = set()
     required = {"dataset", "algorithm", "n", "capacity", "time_seconds", "status"}
+    # Legacy CSVs without max_weight remain supported for n/c plots.
+    if args.mode == "w" or args.max_weight is not None:
+        required.add("max_weight")
     for path in args.csv_files:
         with path.open("r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.DictReader(stream)
@@ -68,33 +72,38 @@ def read_rows(args):
                 try:
                     n, capacity = int(row["n"]), int(row["capacity"])
                     seconds = float(row["time_seconds"])
+                    max_weight = int(row["max_weight"]) if row.get("max_weight") else None
                 except (TypeError, ValueError) as exc:
-                    raise ValueError(f"{path}:{line}: invalid n/capacity/time") from exc
-                if n <= 0 or capacity < 0 or seconds < 0 or not math.isfinite(seconds):
+                    raise ValueError(f"{path}:{line}: invalid n/capacity/max_weight/time") from exc
+                if (n <= 0 or capacity < 0 or seconds < 0 or not math.isfinite(seconds)
+                        or (max_weight is not None and max_weight <= 0)
+                        or ((args.mode == "w" or args.max_weight is not None) and max_weight is None)):
                     raise ValueError(f"{path}:{line}: n/capacity/time outside valid range")
                 if ((args.n is not None and n != args.n)
-                        or (args.capacity is not None and capacity != args.capacity)):
+                        or (args.capacity is not None and capacity != args.capacity)
+                        or (args.max_weight is not None and max_weight != args.max_weight)):
                     skipped["filter"] += 1
                     continue
-                if (args.log_x and (n if args.mode == "n" else capacity) <= 0) or (args.log_y and seconds <= 0):
+                x = {"n": n, "c": capacity, "w": max_weight}[args.mode]
+                if (args.log_x and x <= 0) or (args.log_y and seconds <= 0):
                     skipped["nonpositive_log_value"] += 1
                     continue
                 # Avoid weighting identical rows twice when CSV inputs overlap.
-                identity = (dataset, row["algorithm"], n, capacity,
+                identity = (dataset, row["algorithm"], n, capacity, max_weight,
                             row.get("trial", ""), seconds)
                 if identity in seen:
                     skipped["duplicate"] += 1
                     continue
                 seen.add(identity)
-                timings[(dataset, row["algorithm"], n, capacity)].append(seconds)
+                timings[(dataset, row["algorithm"], n, capacity, max_weight)].append(seconds)
     return timings, skipped
 
 
 def summarize(timings, mode, method):
     groups = defaultdict(list)
     trial_counts = Counter()
-    for (_, algorithm, n, capacity), trials in timings.items():
-        key = (algorithm, n if mode == "n" else capacity)
+    for (_, algorithm, n, capacity, max_weight), trials in timings.items():
+        key = (algorithm, {"n": n, "c": capacity, "w": max_weight}[mode])
         groups[key].append(mean(trials))
         trial_counts[key] += len(trials)
     aggregate = mean if method == "mean" else median
@@ -111,19 +120,21 @@ def draw(summary, args, pair_count):
         raise ValueError("--output must end with .png, .pdf or .svg")
     output.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(9, 5.5), layout="constrained")
-    names = [name for name in ("origin", "list", "bound")
+    names = [name for name in ("origin", "list", "bound", "w3")
              if any(row["algorithm"] == name for row in summary)]
     names += sorted({row["algorithm"] for row in summary} - set(names))
     colors = ["#2563eb", "#059669", "#e76f00", "#9333ea"]
-    markers = ["o", "s", "^"]
+    markers = ["o", "s", "^", "D"]
     for index, algorithm in enumerate(names):
         points = sorted((r for r in summary if r["algorithm"] == algorithm), key=lambda r: r["x"])
         ax.plot([r["x"] for r in points], [r["time_seconds"] for r in points],
                 label=algorithm, color=colors[index % len(colors)],
                 marker=markers[index % len(markers)], markersize=4, linewidth=1.5)
-    ax.set_xlabel("Number of items n" if args.mode == "n" else "Knapsack capacity c")
+    axis_names = {"n": "Number of items n", "c": "Knapsack capacity c",
+                  "w": "Maximum item weight W"}
+    ax.set_xlabel(axis_names[args.mode])
     ax.set_ylabel("Runtime (seconds)")
-    title = args.title or f"Knapsack runtime vs {'item count n' if args.mode == 'n' else 'capacity c'}"
+    title = args.title or f"Knapsack runtime vs {axis_names[args.mode]}"
     ax.set_title(title)
     if args.log_x:
         ax.set_xscale("log")

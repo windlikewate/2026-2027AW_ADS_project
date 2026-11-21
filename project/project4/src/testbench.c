@@ -1,7 +1,7 @@
 /*
  * File: testbench.c
- * Description: Windows/MinGW C11 batch benchmark harness for evaluating the three
- *              0/1 knapsack solvers (`origin`, `list`, `bound`) across KPLIB and
+ * Description: Windows/MinGW C11 batch benchmark harness for evaluating the four
+ *              0/1 knapsack solvers (`origin`, `list`, `bound`, `w3`) across KPLIB and
  *              synthetic `.kp` directory hierarchies.
  *
  * Architecture & Design Notes:
@@ -31,16 +31,20 @@
 #include <limits.h>
 #include "Knapsack_origin.h"
 #include "Knapsack_List_with_bound.h"
+#include "Knapsack_w3.h"
 
 /* Maximum buffer length for extended Windows paths and command lines. */
 #define PATH_BUFFER 32768
 
-/* Unified function-pointer signature shared by all three knapsack solvers. */
+/* Unified function-pointer signature shared by all four knapsack solvers. */
 typedef int (*Solver)(int, int, int *, int *);
 
 /* Canonical CLI algorithm identifiers and corresponding solver functions. */
-static const char *algorithm_names[] = {"origin", "list", "bound"};
-static Solver solvers[] = {knapsack_origin, knapsack_list, knapsack_list_with_bound};
+static const char *algorithm_names[] = {"origin", "list", "bound", "w3"};
+static Solver solvers[] = {knapsack_origin, knapsack_list, knapsack_list_with_bound, knapsack_w3};
+
+/* Derive loop bounds from the registry so new solvers cannot be silently omitted. */
+#define ALGORITHM_COUNT ((int)(sizeof(solvers) / sizeof(solvers[0])))
 
 /**
  * @brief In-memory representation of a single parsed `.kp` knapsack instance.
@@ -146,11 +150,11 @@ static void free_instance(Instance *in) {
 }
 
 /**
- * @brief Maps an algorithm name ("origin", "list", "bound") to index 0..2.
- * @return Solver index in {0, 1, 2}, or -1 if `name` is unrecognized.
+ * @brief Maps an algorithm name ("origin", "list", "bound", "w3") to its registry index.
+ * @return Solver index in [0, ALGORITHM_COUNT), or -1 if `name` is unrecognized.
  */
 static int algorithm_id(const char *name) {
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < ALGORITHM_COUNT; ++i)
         if (!strcmp(name, algorithm_names[i])) return i;
     return -1;
 }
@@ -181,6 +185,8 @@ static int worker(const char *algorithm, const char *input, const char *output) 
 
     /* Execute selected knapsack solver (includes internal sort/malloc/free). */
     int profit = solvers[id](in.n, in.capacity, in.profits, in.weights);
+    /* Negative results signal solver errors, never a valid optimum. */
+    if (profit < 0) { free_instance(&in); return 4; }
 
     /* Capture end timestamp immediately upon return and convert ticks to seconds. */
     QueryPerformanceCounter(&end);
@@ -422,7 +428,7 @@ static int parse_unsigned(const char *text, unsigned *value) {
  * @brief Prints command-line usage instructions to standard output.
  */
 static void usage(const char *exe) {
-    printf("Usage: %s --algorithm origin|list|bound|all [options]\n"
+    printf("Usage: %s --algorithm origin|list|bound|w3|all [options]\n"
            "  --root DIR          kplib root, type/n subtree, or Rxxxxx directory (default kplib)\n"
            "  --output FILE       CSV destination (default benchmark.csv)\n"
            "  --repeat N          independent trials per file/algorithm (default 1)\n"
@@ -430,6 +436,7 @@ static void usage(const char *exe) {
            "  --memory-mb N       worker committed-memory limit (default 1024; 0 = unlimited)\n"
            "  --max-n N           skip larger n (default unlimited)\n"
            "  --max-capacity N    skip larger capacities (default unlimited)\n"
+           "  --max-weight N      skip larger actual item weights (default unlimited)\n"
            "  --limit N           first N files in sorted order (default all)\n"
            "  --dry-run           scan/parse only, no solver calls\n"
            "  --help              show this message\n", exe);
@@ -450,6 +457,7 @@ int main(int argc, char **argv) {
     const char *root = "kplib", *output = "benchmark.csv", *algorithm = NULL;
     unsigned repeat = 1, timeout = 60, memory = 1024;
     unsigned max_n = UINT_MAX, max_capacity = UINT_MAX, limit = UINT_MAX;
+    unsigned max_weight = UINT_MAX;
     int dry_run = 0;
 
     /* Parse CLI flags and numeric limits. */
@@ -473,6 +481,7 @@ int main(int argc, char **argv) {
             else if (!strcmp(key, "--memory-mb")) value = &memory;
             else if (!strcmp(key, "--max-n")) value = &max_n;
             else if (!strcmp(key, "--max-capacity")) value = &max_capacity;
+            else if (!strcmp(key, "--max-weight")) value = &max_weight;
             else if (!strcmp(key, "--limit")) value = &limit;
             /* Reject unknown flags or malformed/negative integer arguments. */
             if (!value || !parse_unsigned(argv[i], value)) {
@@ -484,7 +493,7 @@ int main(int argc, char **argv) {
 
     /*
      * Validate algorithm selection and numerical resource parameters:
-     *   - `--algorithm` must be one of `origin`, `list`, `bound`, or `all`.
+     *   - `--algorithm` must be one of `origin`, `list`, `bound`, `w3`, or `all`.
      *   - `repeat` and `timeout` must be positive, and `timeout * 1000` must
      *     fit strictly below `INFINITE` for `WaitForSingleObject`.
      *   - `memory * 1024 * 1024` must fit inside `SIZE_T` on the target ABI.
@@ -565,18 +574,20 @@ int main(int argc, char **argv) {
         const char *input_status = read_instance(files.paths[i], &in);
         if (!strcmp(input_status, "ok") && (unsigned)in.n > max_n) input_status = "skipped_n";
         if (!strcmp(input_status, "ok") && (unsigned)in.capacity > max_capacity) input_status = "skipped_capacity";
+        /* A W bound allows controlled small-weight bonus experiments. */
+        if (!strcmp(input_status, "ok") && (unsigned)in.max_weight > max_weight) input_status = "skipped_weight";
         free_instance(&in);
         printf("[%zu/%zu] %s\n", i + 1, count, files.paths[i]);
         fflush(stdout);
 
         /* Execute `repeat` independent trials per dataset. */
         for (unsigned trial = 1; ; ++trial) {
-            Result results[3];
-            int first = all ? 0 : selected, last = all ? 2 : selected;
+            Result results[ALGORITHM_COUNT];
+            int first = all ? 0 : selected, last = all ? ALGORITHM_COUNT-1 : selected;
             int reference = 0, have_reference = 0, mismatch = 0, successes = 0;
 
             /*
-             * Invoke each requested solver (`origin` -> `list` -> `bound`) in
+             * Invoke each requested solver (`origin` -> `list` -> `bound` -> `w3`) in
              * its own Job-Object-isolated worker and compare returned optimal
              * profits across all solvers that completed with status == "ok".
              */

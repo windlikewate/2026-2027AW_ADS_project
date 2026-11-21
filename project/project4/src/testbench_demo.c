@@ -9,6 +9,7 @@
 #include "Knapsack_origin.h"
 #include "Knapsack_List.h"
 #include "Knapsack_List_with_bound.h"
+#include "Knapsack_w3.h"
 #include <stdio.h>
 
 int main() {
@@ -30,5 +31,9 @@ int main() {
     int max_profit_list_with_bound = knapsack_list_with_bound(number, capacity, profits, weights);
     printf("Maximum profit (list with bound): %d\n", max_profit_list_with_bound);
 
-    return 0;
+    /* 4. Capacity-independent proximity/SMAWK bonus solver. */
+    int bonus = knapsack_w3(number, capacity, profits, weights);
+    printf("Maximum profit (w3): %d\n", bonus);
+    return !(max_profit == max_profit_list && max_profit == max_profit_list_with_bound
+             && max_profit == bonus);
 }

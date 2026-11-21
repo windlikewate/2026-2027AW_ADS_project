@@ -14,6 +14,7 @@ Description: Generate publication-grade vector PDF & PNG benchmark figures for
                   at fixed small capacity c = 1,000 (R = 1,000, 951 instances).
 """
 
+import argparse
 import csv
 from pathlib import Path
 from statistics import mean, median, stdev
@@ -31,10 +32,18 @@ PROG = "#346958"     # DP-with-Lists (list)
 ACCENT = "#B08034"   # DP-with-Upper-Bounds (bound)
 MUTED = "#5F6976"
 RED = "#A83232"
+BONUS = "#8156A5"  # Proximity + SMAWK (w3)
+ALGORITHMS = ("origin", "list", "bound", "w3")
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT / "data"
-OUT_DIR = Path(__file__).resolve().parent / "visualizations"
+# Optional paths permit comparing a fresh four-solver suite without replacing
+# the historical report CSVs or generated figures.
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
+parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parent / "visualizations")
+args = parser.parse_args()
+DATA_DIR = args.data_dir
+OUT_DIR = args.output_dir
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -47,11 +56,11 @@ def load_csv(path: Path):
 # Figure 1: KPLIB R=10000 Scaling Overview (n = 50, 100, 200, 500, 1000)
 # =========================================================================
 scales = [50, 100, 200, 500, 1000]
-stats_r10k = {alg: {} for alg in ("origin", "list", "bound")}
+stats_r10k = {alg: {} for alg in ALGORITHMS}
 
 for n in scales:
     rows = load_csv(DATA_DIR / f"all_n{n}_R10000.csv")
-    for alg in ("origin", "list", "bound"):
+    for alg in ALGORITHMS:
         vals = sorted(
             float(r["time_seconds"]) * 1000.0
             for r in rows
@@ -73,11 +82,14 @@ style_map = {
     "origin": ("DP-1 (origin)", PRIMARY, "o", "-"),
     "list": ("DP-with-Lists (list)", PROG, "s", "-"),
     "bound": ("DP-with-Upper-Bounds (bound)", ACCENT, "^", "-"),
+    "w3": ("Proximity + SMAWK (w3)", BONUS, "D", "-"),
 }
 
-for alg in ("origin", "list", "bound"):
+for alg in ALGORITHMS:
     label, color, marker, ls = style_map[alg]
     xs = sorted(stats_r10k[alg].keys())
+    if not xs:  # Old three-solver CSVs need no fabricated bonus measurements.
+        continue
     ys = [stats_r10k[alg][x]["mean"] for x in xs]
     lo = [stats_r10k[alg][x]["p25"] for x in xs]
     hi = [stats_r10k[alg][x]["p75"] for x in xs]
@@ -107,18 +119,22 @@ ax1.legend(loc="upper left", fontsize=8.5, frameon=True)
 ax2_twin = ax2.twinx()
 bar_ns = [50, 100, 200]
 x_idx = np.arange(len(scales))
-width = 0.30
+speedup_algs = [a for a in ALGORITHMS[1:]
+                if any(n in stats_r10k[a] for n in bar_ns)]
+width = 0.8 / len(speedup_algs)
 
-sp_list = [stats_r10k["origin"][n]["mean"] / stats_r10k["list"][n]["mean"] if n in stats_r10k["origin"] else 0 for n in scales]
-sp_bound = [stats_r10k["origin"][n]["mean"] / stats_r10k["bound"][n]["mean"] if n in stats_r10k["origin"] else 0 for n in scales]
-
-b1 = ax2.bar(x_idx[:3] - width / 2, sp_list[:3], width, color=PROG, alpha=0.86, label="Speedup: origin / list")
-b2 = ax2.bar(x_idx[:3] + width / 2, sp_bound[:3], width, color=ACCENT, alpha=0.86, label="Speedup: origin / bound")
-
-for rect in list(b1) + list(b2):
-    h = rect.get_height()
-    ax2.annotate(f"{h:.1f}x", xy=(rect.get_x() + rect.get_width() / 2, h),
-                 xytext=(0, 2.5), textcoords="offset points", ha="center", va="bottom", fontsize=7.6, color="#222")
+# Show only measured speedups with a successful baseline at the same n.
+for i, alg in enumerate(speedup_algs):
+    valid = [(j, n) for j, n in enumerate(scales)
+             if n in stats_r10k["origin"] and n in stats_r10k[alg]]
+    xs = [j + (i-(len(speedup_algs)-1)/2)*width for j, _ in valid]
+    ys = [stats_r10k["origin"][n]["mean"]/stats_r10k[alg][n]["mean"] for _, n in valid]
+    bars = ax2.bar(xs, ys, width, color=style_map[alg][1], alpha=0.86,
+                   label=f"Speedup: origin / {alg}")
+    for rect in bars:
+        h = rect.get_height()
+        ax2.annotate(f"{h:.1f}x", (rect.get_x()+rect.get_width()/2, h),
+                     xytext=(0, 2.5), textcoords="offset points", ha="center", fontsize=7.6)
 
 ratio_bl = [stats_r10k["bound"][n]["mean"] / stats_r10k["list"][n]["mean"] for n in scales]
 l_rat = ax2_twin.plot(x_idx, ratio_bl, color=PRIMARY, marker="D", linewidth=2.0, linestyle="--",
@@ -130,7 +146,7 @@ ax2.set_xticklabels([str(n) for n in scales])
 ax2.set_xlabel("Number of Items n (KPLIB 00Uncorrelated, R = 10,000)")
 ax2.set_ylabel("Speedup Factor vs. DP-1 (x)", color=PROG)
 ax2_twin.set_ylabel("Runtime Ratio: bound / list", color=PRIMARY)
-ax2.set_ylim(0, 66)
+ax2.set_ylim(bottom=0)
 ax2_twin.set_ylim(0, 7.2)
 ax2.set_title("(b) Speedup over DP-1 & Upper-Bound Crossover")
 ax2.grid(True, axis="y", linestyle="--", alpha=0.35)
@@ -150,15 +166,15 @@ plt.close()
 # =========================================================================
 fig, axes = plt.subplots(2, 2, figsize=(11.6, 7.2))
 panel_specs = [
-    (axes[0, 0], 50, "(a) n = 50, R = 10,000 (All 3 Solvers)"),
-    (axes[0, 1], 100, "(b) n = 100, R = 10,000 (All 3 Solvers)"),
+    (axes[0, 0], 50, "(a) n = 50, R = 10,000 (Available Solvers)"),
+    (axes[0, 1], 100, "(b) n = 100, R = 10,000 (Available Solvers)"),
     (axes[1, 0], 200, "(c) n = 200, R = 10,000 (Crossover: list < bound << origin)"),
     (axes[1, 1], 500, "(d) n = 500, R = 10,000 (list vs. bound; origin > 1 GiB)"),
 ]
 
 for ax, n, title in panel_specs:
     rows = load_csv(DATA_DIR / f"all_n{n}_R10000.csv")
-    for alg in ("origin", "list", "bound"):
+    for alg in ALGORITHMS:
         pts = sorted(
             (int(r["capacity"]) / 1000.0, float(r["time_seconds"]) * 1000.0)
             for r in rows
@@ -194,36 +210,42 @@ plt.close()
 # Figure 3: Fixed Small Capacity c = 1,000, Varied n in [50, 1000] (951 inst)
 # =========================================================================
 rows_c1k = load_csv(DATA_DIR / "all_nvariable_C1000.csv")
-series_c1k = {alg: {} for alg in ("origin", "list", "bound")}
+series_c1k = {alg: {} for alg in ALGORITHMS}
 for r in rows_c1k:
-    if r["status"] == "ok" and r["time_seconds"]:
+    if r["algorithm"] in series_c1k and r["status"] == "ok" and r["time_seconds"]:
         series_c1k[r["algorithm"]][int(r["n"])] = float(r["time_seconds"]) * 1000.0
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.6, 4.35), gridspec_kw={"width_ratios": [1.48, 1.0]})
 
 window = 25
-for alg in ("origin", "list", "bound"):
+for alg in ALGORITHMS:
     label, color, _, _ = style_map[alg]
     ns_sorted = sorted(series_c1k[alg].keys())
     ys = [series_c1k[alg][k] for k in ns_sorted]
+    if not ys:
+        continue
     ax1.scatter(ns_sorted, ys, s=5, color=color, alpha=0.22)
-    rolling = np.convolve(ys, np.ones(window) / window, mode="valid")
-    ax1.plot(ns_sorted[window - 1:], rolling, color=color, linewidth=2.1,
-             label=f"{label} (25-pt avg, mean {mean(ys):.2f} ms)")
+    local_window = min(window, len(ys))
+    rolling = np.convolve(ys, np.ones(local_window) / local_window, mode="valid")
+    ax1.plot(ns_sorted[local_window - 1:], rolling, color=color, linewidth=2.1,
+             label=f"{label} ({local_window}-pt avg, mean {mean(ys):.2f} ms)")
 
 ax1.set_xlabel("Number of Items n (50 to 1,000, step 1; Fixed Capacity c = 1,000, R = 1,000)")
 ax1.set_ylabel("Execution Time (ms)")
 ax1.set_title("(a) Runtime Trajectory vs. Item Count n at Small Fixed Capacity c = 1,000")
 ax1.set_xlim(40, 1015)
-ax1.set_ylim(0, 4.55)
+ax1.set_ylim(bottom=0)
 ax1.grid(True, linestyle="--", alpha=0.38)
 ax1.legend(loc="upper left", fontsize=8.2, frameon=True)
 
 # Panel (b): Boxplot distribution across the 951 instances
-data_box = [[series_c1k[alg][k] for k in sorted(series_c1k[alg].keys())] for alg in ("origin", "list", "bound")]
+box_algs = [a for a in ALGORITHMS if series_c1k[a]]
+data_box = [[series_c1k[alg][k] for k in sorted(series_c1k[alg])] for alg in box_algs]
 bp = ax2.boxplot(
     data_box,
-    tick_labels=["DP-1\n(origin)", "DP-with-Lists\n(list)", "DP-with-Bounds\n(bound)"],
+    tick_labels=[{"origin": "DP-1\n(origin)", "list": "DP-Lists\n(list)",
+                  "bound": "DP-Bounds\n(bound)", "w3": "SMAWK\n(w3)"}[a]
+                 for a in box_algs],
     patch_artist=True,
     widths=0.46,
     showmeans=True,
@@ -231,7 +253,7 @@ bp = ax2.boxplot(
     medianprops=dict(color="white", linewidth=1.8),
     flierprops=dict(marker="o", markersize=2.8, alpha=0.35),
 )
-for patch, color in zip(bp["boxes"], (PRIMARY, PROG, ACCENT)):
+for patch, color in zip(bp["boxes"], (style_map[a][1] for a in box_algs)):
     patch.set_facecolor(color)
     patch.set_alpha(0.84)
 
