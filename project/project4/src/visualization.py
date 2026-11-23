@@ -2,7 +2,7 @@
 File: visualization.py
 Description: Generate publication-grade vector PDF & PNG benchmark figures for
              ADS Project 4 (Improving Dynamic Programming for 0/1 Knapsack) in
-             the Group 15 Navy / Amber Gold / Sage palette from existing CSVs:
+             the project Navy / Amber Gold / Sage palette from existing CSVs:
                1) scaling_r10000_overview.pdf:
                   Runtime scaling & speedup ratios across n in {50,100,200,500,1000}
                   on KPLIB 00Uncorrelated (R = 10,000, 100 instances per n).
@@ -12,6 +12,10 @@ Description: Generate publication-grade vector PDF & PNG benchmark figures for
                3) runtime_vs_n_fixed_c1000.pdf:
                   Runtime trajectory and empirical distribution across n in [50, 1000]
                   at fixed small capacity c = 1,000 (R = 1,000, 951 instances).
+               4) bonus_regimes_overview.pdf:
+                  Controlled small-weight scaling (W = 16, n = 50..3200), paired
+                  speedups over `w3`, and weight sensitivity (n = 500, c = 1,000,
+                  W = 4..256) for the deterministic O(n + W^3) bonus solver.
 """
 
 import argparse
@@ -99,61 +103,52 @@ for alg in ALGORITHMS:
 # Mark OOM boundary for DP-1 at n >= 500
 ax1.axvline(350, color=RED, linestyle=":", linewidth=1.35, alpha=0.85)
 ax1.text(
-    365, 95.0,
-    "DP-1 > 1 GiB RAM\n(worker_failed at\nn = 500, 1000)",
+    375, 95.0,
+    "DP-1 > 1 GiB RAM\nat n = 500, 1000",
     color=RED, fontsize=8.2, fontweight="bold",
     bbox=dict(boxstyle="round,pad=0.3", facecolor="#FFF6F6", edgecolor=RED, alpha=0.88, lw=0.7)
 )
 
-ax1.set_xscale("log")
 ax1.set_yscale("log")
-ax1.set_xticks(scales)
-ax1.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-ax1.set_xlabel("Number of Items n (KPLIB 00Uncorrelated, R = 10,000, c ~ 0.5 sum(w))")
-ax1.set_ylabel("Mean Execution Time (ms, log scale)")
-ax1.set_title("(a) Runtime Scaling Across Item Count n (Shaded: IQR)")
+ax1.set_xlim(0, 1060)
+ax1.set_xticks([0, 200, 400, 600, 800, 1000])
+ax1.set_xlabel("Number of Items n on KPLIB R = 10,000")
+ax1.set_ylabel("Mean Execution Time in ms, log scale")
+ax1.set_title("(a) Runtime Scaling Across Item Count n")
 ax1.grid(True, which="both", linestyle="--", alpha=0.35)
-ax1.legend(loc="upper left", fontsize=8.5, frameon=True)
+ax1.legend(loc="lower right", fontsize=8.2, frameon=True)
 
-# Panel (b): Speedup over DP-1 (n=50,100,200) + bound/list ratio across all n
+# Panel (b): Speedup over DP-1 (n=50,100,200) + bound/list ratio across linear n
 ax2_twin = ax2.twinx()
 bar_ns = [50, 100, 200]
-x_idx = np.arange(len(scales))
 speedup_algs = [a for a in ALGORITHMS[1:]
                 if any(n in stats_r10k[a] for n in bar_ns)]
-width = 0.8 / len(speedup_algs)
 
-# Show only measured speedups with a successful baseline at the same n.
-for i, alg in enumerate(speedup_algs):
-    valid = [(j, n) for j, n in enumerate(scales)
-             if n in stats_r10k["origin"] and n in stats_r10k[alg]]
-    xs = [j + (i-(len(speedup_algs)-1)/2)*width for j, _ in valid]
-    ys = [stats_r10k["origin"][n]["mean"]/stats_r10k[alg][n]["mean"] for _, n in valid]
-    bars = ax2.bar(xs, ys, width, color=style_map[alg][1], alpha=0.86,
-                   label=f"Speedup: origin / {alg}")
-    for rect in bars:
-        h = rect.get_height()
-        ax2.annotate(f"{h:.1f}x", (rect.get_x()+rect.get_width()/2, h),
-                     xytext=(0, 2.5), textcoords="offset points", ha="center", fontsize=7.6)
+# Show only measured speedups with a successful baseline at the same numeric n.
+for alg in speedup_algs:
+    valid_ns = [n for n in scales if n in stats_r10k["origin"] and n in stats_r10k[alg]]
+    ys = [stats_r10k["origin"][n]["mean"] / stats_r10k[alg][n]["mean"] for n in valid_ns]
+    ax2.plot(valid_ns, ys, color=style_map[alg][1], marker=style_map[alg][2],
+             linewidth=2.0, markersize=6.2, label=f"Speedup: origin / {alg}")
 
 ratio_bl = [stats_r10k["bound"][n]["mean"] / stats_r10k["list"][n]["mean"] for n in scales]
-l_rat = ax2_twin.plot(x_idx, ratio_bl, color=PRIMARY, marker="D", linewidth=2.0, linestyle="--",
-                      markersize=5.8, label="Time ratio: bound / list")
+ax2_twin.plot(scales, ratio_bl, color=PRIMARY, marker="D", linewidth=2.0, linestyle="--",
+              markersize=5.8, label="Time ratio: bound / list")
 ax2_twin.axhline(1.0, color=MUTED, linestyle=":", linewidth=1.0)
 
-ax2.set_xticks(x_idx)
-ax2.set_xticklabels([str(n) for n in scales])
-ax2.set_xlabel("Number of Items n (KPLIB 00Uncorrelated, R = 10,000)")
-ax2.set_ylabel("Speedup Factor vs. DP-1 (x)", color=PROG)
+ax2.set_xlim(0, 1060)
+ax2.set_xticks([0, 200, 400, 600, 800, 1000])
+ax2.set_xlabel("Number of Items n on KPLIB R = 10,000")
+ax2.set_ylabel("Speedup Factor vs. DP-1", color=PROG)
 ax2_twin.set_ylabel("Runtime Ratio: bound / list", color=PRIMARY)
-ax2.set_ylim(bottom=0)
+ax2.set_ylim(0, 64)
 ax2_twin.set_ylim(0, 7.2)
 ax2.set_title("(b) Speedup over DP-1 & Upper-Bound Crossover")
-ax2.grid(True, axis="y", linestyle="--", alpha=0.35)
+ax2.grid(True, linestyle="--", alpha=0.35)
 
 handles1, labels1 = ax2.get_legend_handles_labels()
 handles2, labels2 = ax2_twin.get_legend_handles_labels()
-ax2.legend(handles1 + handles2, labels1 + labels2, loc="upper right", fontsize=8.0, frameon=True)
+ax2.legend(handles1 + handles2, labels1 + labels2, loc="center right", fontsize=8.0, frameon=True)
 
 plt.tight_layout()
 plt.savefig(OUT_DIR / "scaling_r10000_overview.pdf")
@@ -241,11 +236,7 @@ ax1.legend(loc="upper left", fontsize=8.2, frameon=True)
 # Panel (b): Boxplot distribution across the 951 instances
 box_algs = [a for a in ALGORITHMS if series_c1k[a]]
 data_box = [[series_c1k[alg][k] for k in sorted(series_c1k[alg])] for alg in box_algs]
-bp = ax2.boxplot(
-    data_box,
-    tick_labels=[{"origin": "DP-1\n(origin)", "list": "DP-Lists\n(list)",
-                  "bound": "DP-Bounds\n(bound)", "w3": "SMAWK\n(w3)"}[a]
-                 for a in box_algs],
+_bp_kw = dict(
     patch_artist=True,
     widths=0.46,
     showmeans=True,
@@ -253,6 +244,13 @@ bp = ax2.boxplot(
     medianprops=dict(color="white", linewidth=1.8),
     flierprops=dict(marker="o", markersize=2.8, alpha=0.35),
 )
+_bp_labels = [{"origin": "DP-1\n(origin)", "list": "DP-Lists\n(list)",
+               "bound": "DP-Bounds\n(bound)", "w3": "SMAWK\n(w3)"}[a]
+              for a in box_algs]
+try:
+    bp = ax2.boxplot(data_box, tick_labels=_bp_labels, **_bp_kw)
+except TypeError:
+    bp = ax2.boxplot(data_box, labels=_bp_labels, **_bp_kw)
 for patch, color in zip(bp["boxes"], (style_map[a][1] for a in box_algs)):
     patch.set_facecolor(color)
     patch.set_alpha(0.84)
@@ -265,5 +263,120 @@ plt.tight_layout()
 plt.savefig(OUT_DIR / "runtime_vs_n_fixed_c1000.pdf")
 plt.savefig(OUT_DIR / "runtime_vs_n_fixed_c1000.png", dpi=300)
 plt.close()
+
+
+# =========================================================================
+# Figure 4: Bonus O(n + W^3) Small-Weight Advantage & Weight Sensitivity
+# =========================================================================
+bonus_n_path = DATA_DIR / "bonus_advantage_n.csv"
+bonus_w_path = DATA_DIR / "bonus_advantage_w.csv"
+
+if bonus_n_path.exists() and bonus_w_path.exists():
+    def summarize_bonus_suite(csv_path: Path, x_field: str):
+        raw = load_csv(csv_path)
+        by_inst = {}
+        for r in raw:
+            if r["status"] == "ok" and r["time_seconds"]:
+                key = (int(r[x_field]), r["dataset"], r["algorithm"])
+                by_inst.setdefault(key, []).append(float(r["time_seconds"]) * 1000.0)
+        inst_med = {k: median(v) for k, v in by_inst.items()}
+        agg = {alg: {} for alg in ALGORITHMS}
+        xs_all = sorted({k[0] for k in inst_med})
+        for alg in ALGORITHMS:
+            for x in xs_all:
+                vals = sorted(v for (kx, _, ka), v in inst_med.items() if kx == x and ka == alg)
+                if vals:
+                    agg[alg][x] = {
+                        "median": median(vals),
+                        "p25": float(np.percentile(vals, 25)),
+                        "p75": float(np.percentile(vals, 75)),
+                    }
+        return inst_med, agg, xs_all
+
+    inst_n, agg_n, ns_bonus = summarize_bonus_suite(bonus_n_path, "n")
+    _, agg_w, ws_bonus = summarize_bonus_suite(bonus_w_path, "max_weight")
+
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(13.4, 4.35))
+
+    short_labels = {
+        "origin": "DP-1: origin",
+        "list": "DP-Lists: list",
+        "bound": "DP-Bounds: bound",
+        "w3": "Bonus: w3",
+    }
+
+    # Panel (a): Small-weight runtime scaling at W = 16
+    for alg in ALGORITHMS:
+        _, color, marker, ls = style_map[alg]
+        xs = sorted(agg_n[alg].keys())
+        ys = [agg_n[alg][x]["median"] for x in xs]
+        lo = [agg_n[alg][x]["p25"] for x in xs]
+        hi = [agg_n[alg][x]["p75"] for x in xs]
+        lw = 2.4 if alg == "w3" else 1.95
+        ax1.plot(xs, ys, marker=marker, color=color, linewidth=lw, markersize=5.8,
+                 linestyle=ls, label=short_labels[alg])
+        ax1.fill_between(xs, lo, hi, color=color, alpha=0.15)
+
+    ax1.set_xscale("log", base=2)
+    ax1.set_yscale("log")
+    ax1.set_xticks(ns_bonus)
+    ax1.set_xticklabels([str(x) for x in ns_bonus], fontsize=8.2)
+    ax1.set_xlabel("Item count n, log2 scale", fontsize=9.0)
+    ax1.set_ylabel("Solver time in ms, log scale", fontsize=9.0)
+    ax1.set_title("(a) Small weights: W = 16", fontsize=10.0)
+    ax1.grid(True, which="both", linestyle="--", alpha=0.35)
+    ax1.legend(loc="upper left", fontsize=7.8, frameon=True)
+
+    # Panel (b): Paired speedup baseline / w3 at W = 16
+    for alg in ("origin", "list", "bound"):
+        _, color, marker, _ = style_map[alg]
+        med_sp, lo_sp, hi_sp = [], [], []
+        for x in ns_bonus:
+            ds_list = sorted({ds for (kx, ds, _) in inst_n if kx == x})
+            ratios = [inst_n[(x, ds, alg)] / inst_n[(x, ds, "w3")] for ds in ds_list]
+            med_sp.append(median(ratios))
+            lo_sp.append(float(np.percentile(ratios, 25)))
+            hi_sp.append(float(np.percentile(ratios, 75)))
+        ax2.plot(ns_bonus, med_sp, marker=marker, color=color, linewidth=2.0, markersize=5.8,
+                 label=f"{alg} / w3")
+        ax2.fill_between(ns_bonus, lo_sp, hi_sp, color=color, alpha=0.14)
+
+    ax2.axhline(1.0, color=RED, linestyle="--", linewidth=1.25, label="1.0x")
+    ax2.set_xscale("log", base=2)
+    ax2.set_yscale("log")
+    ax2.set_xticks(ns_bonus)
+    ax2.set_xticklabels([str(x) for x in ns_bonus], fontsize=8.2)
+    ax2.set_xlabel("Item count n, log2 scale", fontsize=9.0)
+    ax2.set_ylabel("Paired speedup: baseline / w3, log scale", fontsize=9.0)
+    ax2.set_title("(b) Bonus advantage at W = 16", fontsize=10.0)
+    ax2.grid(True, which="both", linestyle="--", alpha=0.35)
+    ax2.legend(loc="upper left", fontsize=7.8, frameon=True)
+
+    # Panel (c): Weight sensitivity at fixed n = 500, c = 1,000
+    for alg in ALGORITHMS:
+        _, color, marker, ls = style_map[alg]
+        xs = sorted(agg_w[alg].keys())
+        ys = [agg_w[alg][x]["median"] for x in xs]
+        lo = [agg_w[alg][x]["p25"] for x in xs]
+        hi = [agg_w[alg][x]["p75"] for x in xs]
+        lw = 2.4 if alg == "w3" else 1.95
+        ax3.plot(xs, ys, marker=marker, color=color, linewidth=lw, markersize=5.8,
+                 linestyle=ls, label=short_labels[alg])
+        ax3.fill_between(xs, lo, hi, color=color, alpha=0.15)
+
+    ax3.set_xscale("log", base=2)
+    ax3.set_yscale("log")
+    ax3.set_xticks(ws_bonus)
+    ax3.set_xticklabels([str(x) for x in ws_bonus], fontsize=8.2)
+    ax3.set_xlabel("Actual maximum weight W, log2 scale", fontsize=9.0)
+    ax3.set_ylabel("Solver time in ms, log scale", fontsize=9.0)
+    ax3.set_title("(c) Weight sensitivity", fontsize=10.0)
+    ax3.grid(True, which="both", linestyle="--", alpha=0.35)
+    ax3.legend(loc="lower right", fontsize=7.6, frameon=True)
+
+    plt.tight_layout()
+    plt.savefig(OUT_DIR / "bonus_regimes_overview.pdf")
+    plt.savefig(OUT_DIR / "bonus_regimes_overview.png", dpi=300)
+    plt.close()
 
 print("Generated figures in:", OUT_DIR)

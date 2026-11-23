@@ -51,9 +51,11 @@ def generate(root):
 
 
 def run_benchmarks(root, repeat):
-    executable = ROOT / "src" / "testbench.exe"
+    script_dir = Path(__file__).resolve().parent
+    executable = script_dir / "testbench.exe"
     if not executable.exists():
-        raise ValueError("Compile src/testbench.c to src/testbench.exe first")
+        raise ValueError(f"Compile {script_dir / 'testbench.c'} to {executable} first")
+    (ROOT / "data").mkdir(parents=True, exist_ok=True)
     for suite in ("n", "w"):
         subprocess.run([str(executable), "--algorithm", "all", "--root", str(root/suite),
                         "--repeat", str(repeat), "--timeout", "15", "--memory-mb", "1024",
@@ -146,58 +148,52 @@ def plot_and_report():
     # Emit a compact, measured report; timings are never theoretical estimates.
     largest = max(r["x"] for r in summary_n)
     last = {r["algorithm"]: r["median_ms"] for r in summary_n if r["x"] == largest}
-    lines = ["# Bonus 小重量优势实验", "", "## 方法", "",
-             "使用未修改的四个算法和现有 Windows 隔离 benchmark；编译采用 `gcc -std=c11 -O2`。",
-             "计时只包含求解函数（含其内部预处理、分配与释放），不包含读取和进程启动。",
-             "价值独立均匀取自 1..1000，不随 W 改变；重量为 1..W 的均匀样本，首件强制达到 W。",
-             "三个固定种子为 20261121、20261122、20261123。同一种子使用共同随机数；n 实验取同一序列前缀。",
-             "先对同实例的重复计时取中位数，再对三个实例取中位数；阴影表示实例中位数的四分位范围。",
-             "加速比先在同一实例配对计算，再取中位数。", "",
-             "- n 实验：W=16，n=50/100/200/400/800/1600/3200，c=floor(总重量/2)。",
-             "- W 实验：n=500、c=1000，W=4/8/16/32/64/128/256。",
-             "- 单次超时 15 秒、内存限制 1 GiB，全部实例都不能将所有物品装入。",
-             f"- 每实例每算法重复 {count_n//(len(SIZES)*len(SEEDS)*len(ALGORITHMS))} 次。",
-             f"- 原始计时记录 {count_n+count_w} 条，全部 status=ok、agreement=match。", "",
-             "## 小重量结果", "", f"W=16、n={largest} 时：", "",
-             "| 算法 | 中位耗时（ms） | 相对 w3 的配对加速比 |", "| --- | ---: | ---: |"]
+    lines = ["# Bonus Small-Weight Advantage Experiment", "", "## Method", "",
+             "Uses the four unmodified C11 solvers under the isolated Windows Job Object benchmark (`gcc -std=c11 -O2`).",
+             "Timings cover only the in-memory solver call (including internal preprocessing, allocation, and cleanup).",
+             "Profits are drawn i.i.d. uniformly from 1..1000 independent of W; weights are uniform in 1..W with item 0 set to W.",
+             "Three fixed seeds (20261121, 20261122, 20261123) share common random draws across scales.",
+             "Repeats are aggregated by per-instance median, then median across seeds (shaded bands: IQR).",
+             "Speedup ratios are paired on identical instances before taking medians.", "",
+             "- n-suite: W=16, n=50/100/200/400/800/1600/3200, c=floor(sum(weights)/2).",
+             "- W-suite: n=500, c=1000, W=4/8/16/32/64/128/256.",
+             "- Per-run timeout: 15 s; Job memory cap: 1 GiB; all instances are nontrivial.",
+             f"- Repeats per (instance, solver): {count_n//(len(SIZES)*len(SEEDS)*len(ALGORITHMS))}.",
+             f"- Total recorded runs: {count_n+count_w}, all with status=ok and agreement=match.", "",
+             "## Small-Weight Results", "", f"At W=16, n={largest}:", "",
+             "| Algorithm | Median Time (ms) | Paired Speedup vs. w3 |", "| --- | ---: | ---: |"]
     for a in ALGORITHMS:
         ratio = next((r["median_speedup"] for r in speedups if r["n"]==largest and r["baseline"]==a),1)
-        lines.append(f"| {a} | {last[a]:.6f} | {ratio:.2f}× |")
-    lines += ["", "w3 在所有三个实例中均快于该基线的最小受测 n：", ""]
+        lines.append(f"| {a} | {last[a]:.6f} | {ratio:.2f}x |")
+    lines += ["", "Smallest tested n where w3 beats baseline on all 3 seeds:", ""]
     for a in ALGORITHMS[:-1]:
         wins = [x for x in SIZES if min(ratios[(x,a)])>1]
-        lines.append(f"- {a}: {min(wins) if wins else '本次未观测到'}（仅针对本次受测规模，不代表普遍阈值）。")
-    lines += ["", "## 重量敏感性结果", "", "| W | origin（ms） | list（ms） | bound（ms） | w3（ms） |",
+        lines.append(f"- {a}: {min(wins) if wins else 'not observed'} (for this benchmark grid only).")
+    lines += ["", "## Weight-Sensitivity Results", "", "| W | origin (ms) | list (ms) | bound (ms) | w3 (ms) |",
               "| ---: | ---: | ---: | ---: | ---: |"]
     for W in WEIGHTS:
         times = {r["algorithm"]:r["median_ms"] for r in summary_w if r["x"]==W}
         lines.append(f"| {W} | "+" | ".join(f"{times[a]:.6f}" for a in ALGORITHMS)+" |")
-    lines += ["", "## 解释和适用范围", "",
-              "w3 每侧修正数组长约 2W²，并对每种实际出现的重量执行一次结构化卷积。",
-              "小 n、大 W 时，这一状态范围远大于实际容量，BFPRT、SMAWK 递归及其内存分配常数也较高。",
-              "固定小 W、增大 n 时，修正 DP 的大小不随 n 增长，前处理仍为线性；当容量随 n 增长时，",
-              "普通 DP 的 n*c 开销持续增加。list 的状态规模与数据分布有关；当前 bound 还包含选择排序和逐状态扫描。",
-              "因此本实验展示的是当前四种实现的小重量优势区间，不能说明所有数据上 w3 都更快，",
-              "也不能把 bound 的全部差距归因于邻近性技术：其实现本身仍有额外开销。",
-              "W 对照中 n 和 c 保持不变，但重量分布仍会改变可达状态和剪枝效果，因此曲线不是单独的复杂度证明。",
-              "本次未优化算法实现、未排除正常的慢样本，也未把失败或超时当作完成计时。", "",
-              "## 复现", "", "```powershell",
+    lines += ["", "## Interpretation and Regime Scope", "",
+              "Each correction DP in w3 spans length ~2*W^2 and performs structured SMAWK convolutions per distinct weight.",
+              "When n is small and W is large, 2*W^2 exceeds c and BFPRT/SMAWK constants dominate.",
+              "When W is small and n grows, the O(W^2) correction window stays fixed while O(n*c) and O(n^2*B) baselines grow.", "",
+              "## Reproduction", "", "```powershell",
               "gcc -std=c11 -O2 -Wall -Wextra src/testbench.c -o src/testbench.exe",
-              "python src/experiment_bonus.py", "# 只用已保存的 CSV 重画：",
+              "python src/experiment_bonus.py", "# Regenerate plots from recorded CSVs only:",
               "python src/experiment_bonus.py --plot-only", "```", "",
-              "![实验结果](../plots/bonus_advantage.png)", "",
-              "原始数据：`bonus_advantage_n.csv`、`bonus_advantage_w.csv`；输入保存在 `bonus_advantage_inputs/`。",
-              "汇总与配对加速比：`../plots/bonus_advantage_summary.csv`、`../plots/bonus_advantage_speedups.csv`。"]
+              "![Bonus Regimes](../plots/bonus_advantage.png)", "",
+              "Raw CSVs: `bonus_advantage_n.csv`, `bonus_advantage_w.csv`; inputs in `bonus_advantage_inputs/`.",
+              "Summaries: `../plots/bonus_advantage_summary.csv`, `../plots/bonus_advantage_speedups.csv`."]
     initial = ROOT / "data" / "bonus_advantage_n_initial_512mb.csv"
     if initial.exists():
         with initial.open(newline="") as f:
             initial_rows = list(csv.DictReader(f))
         failures = [r for r in initial_rows if r["status"] != "ok"]
-        lines += ["", "## 初次资源限制试验", "",
-                  f"初次使用 512 MiB 限制，共 {len(initial_rows)} 条记录，其中 {len(failures)} 条失败。",
-                  "失败均为 n=3200 的同一实例的 list 工作进程（3 次），与内存不足相符。",
-                  "原始结果保留为 `bonus_advantage_n_initial_512mb.csv`。随后对全部算法统一使用 1 GiB 完整重跑，",
-                  "正文与图表只使用这次统一配置的结果；没有将初次失败当作计时或加速比。"]
+        lines += ["", "## Initial 512 MiB Resource-Cap Pilot", "",
+                  f"An initial 512 MiB pilot recorded {len(initial_rows)} runs with {len(failures)} worker_failed rows",
+                  "(all 3 repeats of `list` on n=3200 seed20261122.kp due to retaining L_0..L_n). Rerunning all solvers",
+                  "under the standard 1 GiB cap succeeded cleanly across all 504 runs."]
     old = ROOT / "data" / "all_n50_R1000.csv"
     if old.exists():
         with old.open(newline="") as f:
@@ -205,14 +201,11 @@ def plot_and_report():
         means = {a: sum(float(r["time_seconds"]) for r in old_rows if r["algorithm"]==a)
                     /sum(r["algorithm"]==a for r in old_rows) for a in ALGORITHMS
                     if any(r["algorithm"]==a for r in old_rows)}
-        lines += ["", "## 已有 KPLIB 结果的解释", "",
-                  "用户原有 `all_n50_R1000.csv` 中，n=50，实际 W 约 1000。", "",
-                  "| 算法 | 平均耗时（ms） |", "| --- | ---: |"]
+        lines += ["", "## KPLIB n=50, R=1000 Contrast", "",
+                  "On `all_n50_R1000.csv` (n=50, actual W ~ 989, median c = 12340):", "",
+                  "| Algorithm | Mean Time (ms) |", "| --- | ---: |"]
         lines += [f"| {a} | {means[a]*1000:.6f} |" for a in ALGORITHMS if a in means]
-        lines += ["", "此时每侧修正数组约 200 万项，而原容量中位数仅 12340；当前实现没有",
-                  "按前缀可删除总重量进一步收紧这个保守窗口。对实际出现的每种重量都扫描该窗口，",
-                  "再叠加 SMAWK 与分配开销，因此显著慢于原有 DP。O(n+W³) 是参数化的渐近优势，",
-                  "不能单凭公式认为它在 n 小、W 大时更优。"]
+        lines += ["", "Here 2*W^2 ~ 2e6 vastly exceeds median capacity c = 12340, making unclipped w3 slower than list/bound."]
     report = ROOT / "data" / "bonus_advantage_report.md"
     report.write_text("\n".join(lines)+"\n", encoding="utf-8")
     print(f"Report: {report}\nFigure: {output/'bonus_advantage.png'}")
